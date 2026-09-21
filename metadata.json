@@ -1,0 +1,6 @@
+{
+  "name": "LUBPY STUDIO",
+  "description": "Premium coding services for custom academic and enterprise software projects.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

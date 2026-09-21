@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LUBPY STUDIO</title>
+    <meta name="description" content="Premium coding services for custom academic and enterprise software projects." />
+    <meta property="og:title" content="LUBPY STUDIO" />
+    <meta property="og:description" content="Premium coding services for custom academic and enterprise software projects." />
+    <script>
+      window.addEventListener('error', function (e) {
+        console.warn('Handled resource or script error:', e.message || e);
+        if (e.preventDefault) e.preventDefault();
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        console.warn('Handled promise rejection:', e.reason);
+        if (e.preventDefault) e.preventDefault();
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
