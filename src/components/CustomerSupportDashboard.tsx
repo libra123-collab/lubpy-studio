@@ -18,6 +18,7 @@ import {
   STANDARD_REVIEW_TEMPLATES, 
   getStandardResponseByRating 
 } from '../utils/reviewStore';
+import CSProjectWorkflowTab from './staff/CSProjectWorkflowTab';
 
 export interface LUBPYCSTicket {
   id: string; // e.g. '#TK-2401'
@@ -83,7 +84,7 @@ export default function CustomerSupportDashboard({
   });
 
   // Navigation & Search / Filter
-  const [activeTab, setActiveTab] = useState<'tickets' | 'issues' | 'csat' | 'team'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'workflow' | 'issues' | 'csat' | 'team'>('workflow');
   const [csStaffList, setCsStaffList] = useState<CSSpecialist[]>(() => getHRCSStaff());
 
   // Customer Reviews & CSAT state for CS specialists
@@ -477,6 +478,21 @@ export default function CustomerSupportDashboard({
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3 px-2">CHỨC NĂNG CHÍNH</p>
                 <div className="space-y-1.5">
                   <button 
+                    onClick={() => setActiveTab('workflow')}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'workflow' 
+                        ? 'bg-gradient-to-r from-sky-600 via-indigo-600 to-purple-600 text-white shadow-md shadow-sky-950/40 border border-sky-400/30' 
+                        : 'hover:bg-[#181a20] text-gray-300 hover:text-white'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Layers className="w-4 h-4 text-sky-400" />
+                      <span>Quy Trình Dự Án &amp; Bàn Giao</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 bg-sky-500/20 text-sky-300 font-bold rounded-full">6 Bước</span>
+                  </button>
+
+                  <button 
                     onClick={() => setActiveTab('tickets')}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       activeTab === 'tickets' 
@@ -731,6 +747,14 @@ export default function CustomerSupportDashboard({
           </section>
 
           {/* MAIN TAB CONTENT */}
+          {activeTab === 'workflow' && (
+            <CSProjectWorkflowTab
+              currentUser={currentUser}
+              onTriggerToast={triggerToast}
+              language={language}
+            />
+          )}
+
           {activeTab === 'tickets' && (
             <section className="bg-[#181a20] border border-[#232630] rounded-2xl p-6" id="cs-tickets-tab">
               {/* Table Controls & Search */}

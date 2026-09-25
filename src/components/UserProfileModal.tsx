@@ -21,8 +21,6 @@ export default function UserProfileModal({
   onUpdateUser,
   onTriggerToast
 }: UserProfileModalProps) {
-  if (!isOpen) return null;
-
   const [name, setName] = useState(user.name || '');
   const [photoUrl, setPhotoUrl] = useState(user.photoUrl || '');
   const [phone, setPhone] = useState(user.phone || '');
@@ -182,6 +180,8 @@ export default function UserProfileModal({
       onClose();
     }, 800);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">

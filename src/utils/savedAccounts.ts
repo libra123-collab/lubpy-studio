@@ -18,7 +18,7 @@ export interface SavedAccount {
 
 const SAVED_ACCOUNTS_KEY = 'lubpy_saved_accounts_v2';
 
-// Standard default saved account (Only Super Admin is kept pre-populated)
+// Standard default saved account for convenient identity switching (Stores passwords for quick login)
 const DEFAULT_SAVED_ACCOUNTS: SavedAccount[] = [
   {
     id: 'superadmin@lubpystudio.vn',
@@ -39,8 +39,8 @@ function sanitizePhotoUrl(photoUrl?: string, email?: string): string {
   if (!photoUrl) {
     return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(email || 'user')}&backgroundColor=0f172a`;
   }
-  // Strip excessively large data URLs (>150KB) to prevent quota exceeded errors in localStorage
-  if (photoUrl.length > 150000) {
+  // Strip excessively large data URLs (>40KB) to prevent quota exceeded errors in localStorage
+  if (photoUrl.startsWith('data:') && photoUrl.length > 40000) {
     return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(email || 'user')}&backgroundColor=0f172a`;
   }
   return photoUrl;
@@ -49,16 +49,24 @@ function sanitizePhotoUrl(photoUrl?: string, email?: string): string {
 function safeSetItem(key: string, data: any[]): void {
   try {
     const cleanedData = data.map(item => ({
-      ...item,
-      photoUrl: sanitizePhotoUrl(item.photoUrl, item.email)
+      id: item.id || item.email,
+      email: item.email,
+      name: item.name,
+      role: item.role,
+      isDepartmentHead: item.isDepartmentHead,
+      department: item.department,
+      departmentTitle: item.departmentTitle,
+      photoUrl: sanitizePhotoUrl(item.photoUrl, item.email),
+      savedPassword: item.savedPassword || item.password || undefined,
+      adminSecurityKey: item.adminSecurityKey || (item.role === 'admin' ? 'ADMIN_SUPER_KEY_2026' : undefined),
+      lastLoggedInAt: item.lastLoggedInAt || Date.now()
     }));
     localStorage.setItem(key, JSON.stringify(cleanedData));
   } catch (e) {
     console.warn(`QuotaExceededError setting ${key}, pruning storage and retrying...`, e);
     try {
-      // Emergency cleanup: strip unnecessary data and prune
       const minimalData = data.slice(0, 10).map(item => ({
-        id: item.id,
+        id: item.id || item.email,
         email: item.email,
         name: item.name,
         role: item.role,
@@ -66,13 +74,13 @@ function safeSetItem(key: string, data: any[]): void {
         department: item.department,
         departmentTitle: item.departmentTitle,
         photoUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(item.email || 'user')}&backgroundColor=0f172a`,
-        savedPassword: item.savedPassword,
-        adminSecurityKey: item.adminSecurityKey,
-        lastLoggedInAt: item.lastLoggedInAt
+        savedPassword: item.savedPassword || item.password || undefined,
+        adminSecurityKey: item.adminSecurityKey || (item.role === 'admin' ? 'ADMIN_SUPER_KEY_2026' : undefined),
+        lastLoggedInAt: item.lastLoggedInAt || Date.now()
       }));
       localStorage.setItem(key, JSON.stringify(minimalData));
     } catch (err) {
-      console.error(`Failed to save ${key} to localStorage even after emergency cleanup:`, err);
+      console.error(`Failed to save ${key} to localStorage:`, err);
     }
   }
 }
@@ -145,19 +153,49 @@ export function getSavedAccounts(): SavedAccount[] {
       return headMap.has(em) || memberMap.has(em);
     });
 
-    // Ensure Super Admin is present
-    if (superAdminEmail && !removedEmails.has(superAdminEmail) && !filteredCurrent.some(a => a && a.email && String(a.email).toLowerCase() === superAdminEmail)) {
-      filteredCurrent.unshift(superAdmin);
+    // Ensure Super Admin is present with proper password
+    let adminPass = 'admin123';
+    try {
+      const rawUsers = localStorage.getItem('lubpy_users');
+      if (rawUsers) {
+        const uList = JSON.parse(rawUsers);
+        const adminFound = uList.find((u: any) => u.role === 'admin' || (u.email && u.email.toLowerCase() === superAdminEmail));
+        if (adminFound && adminFound.password) adminPass = adminFound.password;
+      }
+    } catch (e) {}
+
+    const adminEntry: SavedAccount = {
+      ...superAdmin,
+      savedPassword: adminPass,
+      adminSecurityKey: 'ADMIN_SUPER_KEY_2026',
+    };
+
+    if (superAdminEmail && !removedEmails.has(superAdminEmail)) {
+      const adminIdx = filteredCurrent.findIndex(a => a && a.email && String(a.email).toLowerCase() === superAdminEmail);
+      if (adminIdx >= 0) {
+        filteredCurrent[adminIdx] = {
+          ...filteredCurrent[adminIdx],
+          ...adminEntry,
+          savedPassword: filteredCurrent[adminIdx].savedPassword || adminPass,
+          adminSecurityKey: 'ADMIN_SUPER_KEY_2026'
+        };
+      } else {
+        filteredCurrent.unshift(adminEntry);
+      }
     }
 
-    // Ensure all currently Appointed Dept Heads are present in the saved list
+    // Ensure all currently Appointed Dept Heads are present in the saved list with their passwords
     headMap.forEach((headUser, cleanEmail) => {
       if (!cleanEmail || removedEmails.has(cleanEmail)) return;
 
       const existingIdx = filteredCurrent.findIndex(a => a && a.email && String(a.email).toLowerCase() === cleanEmail);
-      const computedPassword = headUser.password 
+      const existingSaved = existingIdx >= 0 ? filteredCurrent[existingIdx] : null;
+
+      const defaultRolePass = headUser.role === 'tech' ? 'tech2026' : headUser.role === 'cs' ? 'cs2026' : headUser.role === 'hr' ? 'hr2026' : headUser.role === 'accounting' ? 'acc2026' : '123456';
+      const headPassword = (headUser.password && headUser.password.trim()) 
+        || (existingSaved?.savedPassword && existingSaved.savedPassword.trim()) 
         || (headUser.dob ? dobTo8Digits(headUser.dob) : '') 
-        || (existingIdx >= 0 && filteredCurrent[existingIdx].savedPassword ? filteredCurrent[existingIdx].savedPassword : '123456');
+        || defaultRolePass;
 
       const entry: SavedAccount = {
         id: cleanEmail,
@@ -168,7 +206,8 @@ export function getSavedAccounts(): SavedAccount[] {
         department: headUser.department,
         departmentTitle: headUser.departmentTitle,
         photoUrl: sanitizePhotoUrl(headUser.photoUrl, cleanEmail),
-        savedPassword: computedPassword,
+        savedPassword: headPassword,
+        adminSecurityKey: headUser.role === 'admin' ? 'ADMIN_SUPER_KEY_2026' : undefined,
         lastLoggedInAt: existingIdx >= 0 ? filteredCurrent[existingIdx].lastLoggedInAt : Date.now() - 5000
       };
 
@@ -223,6 +262,12 @@ export function saveAccountToStorage(account: {
     const current = getSavedAccounts();
     const existingIndex = current.findIndex(a => a && a.email && String(a.email).trim().toLowerCase() === cleanEmail);
 
+    const passToSave = (account.password && account.password.trim()) 
+      || (account as any).savedPassword
+      || (existingIndex >= 0 ? current[existingIndex].savedPassword : undefined);
+    const keyToSave = account.adminSecurityKey 
+      || (account.role === 'admin' ? 'ADMIN_SUPER_KEY_2026' : (existingIndex >= 0 ? current[existingIndex].adminSecurityKey : undefined));
+
     const newEntry: SavedAccount = {
       id: cleanEmail,
       email: cleanEmail,
@@ -232,8 +277,8 @@ export function saveAccountToStorage(account: {
       department: account.department,
       departmentTitle: account.departmentTitle,
       photoUrl: sanitizePhotoUrl(account.photoUrl, cleanEmail),
-      savedPassword: account.savePasswordPreference !== false ? (account.password || '123456') : undefined,
-      adminSecurityKey: account.savePasswordPreference !== false ? (account.adminSecurityKey || (account.role === 'admin' ? 'ADMIN_SUPER_KEY_2026' : undefined)) : undefined,
+      savedPassword: passToSave,
+      adminSecurityKey: keyToSave,
       lastLoggedInAt: Date.now()
     };
 

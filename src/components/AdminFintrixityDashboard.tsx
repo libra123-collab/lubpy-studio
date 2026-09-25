@@ -10,6 +10,7 @@ import WorkspaceNotificationBell from './WorkspaceNotificationBell';
 import CameraAvatarModal from './CameraAvatarModal';
 import { formatVND, calcProjectFinancials, calcTotalFinancials } from '../utils/currency';
 import { exportProjectsToCSV } from '../utils/exportCsv';
+import { compressImageFile } from '../utils/imageCompressor';
 import { validateEmail, validatePhoneVN, validateFutureDate, validateRequired, validateNumberPositive } from '../utils/validation';
 import { fetchProjectsFromDb, createProjectInDb, updateProjectInDb, createTransactionInDb, api } from '../utils/apiClient';
 
@@ -38,6 +39,8 @@ import {
   getHeadsForSpecialty,
   getDepartmentQuotaStats
 } from '../utils/departmentSpecialtiesConfig';
+import ProjectContractModal from './ProjectContractModal';
+import { getWorkflowProjects, WorkflowProject } from '../utils/projectWorkflowStore';
 
 interface AdminFintrixityDashboardProps {
   user: User;
@@ -112,8 +115,11 @@ export interface LubpyClientItem {
   phone: string;
   email: string;
   school: string;
+  workplace?: string;
+  position?: string;
   tier: 'Mới' | 'Thân thiết' | 'Giới thiệu người khác';
   createdAt: string;
+  notes?: string;
 }
 
 // Initial baseline mock data for LUBPY STUDIO Admin Workspace (10 Projects, 7 Leads, 0 Devs, 10 Clients, 16 Repo Docs)
@@ -346,8 +352,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0912345678',
     email: 'an.nguyen@bk.edu.vn',
     school: 'Đại Học Bách Khoa TP.HCM',
+    workplace: 'Đại Học Bách Khoa TP.HCM (Khoa KH&KT Máy Tính)',
+    position: 'Sinh Viên Năm Cuối (Học viên)',
     tier: 'Thân thiết',
-    createdAt: '15/06/2026'
+    createdAt: '15/06/2026',
+    notes: 'Khách hàng yêu cầu hỗ trợ cài đặt môi trường trực tiếp qua UltraViewer và tài liệu hướng dẫn chạy code chi tiết.'
   },
   {
     id: 'CL-102',
@@ -355,8 +364,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0987654321',
     email: 'mai.tran@vnu.edu.vn',
     school: 'Đại Học Quốc Gia',
+    workplace: 'Viện Đào Tạo Quốc Tế - ĐHQG TP.HCM',
+    position: 'Học Viên Cao Học CNTT',
     tier: 'Mới',
-    createdAt: '20/06/2026'
+    createdAt: '20/06/2026',
+    notes: 'Cần tài liệu thuyết minh bám sát chuẩn IEEE 830, bảo mật thông tin đề tài luận văn.'
   },
   {
     id: 'CL-103',
@@ -364,8 +376,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0903456789',
     email: 'nam.le@neu.edu.vn',
     school: 'Đại Học Kinh Tế Quốc Dân',
+    workplace: 'Viện CNTT Kinh Tế & Chuyển Đổi Số - NEU',
+    position: 'Kỹ Sư Phần Mềm Dự Bị / Học viên',
     tier: 'Giới thiệu người khác',
-    createdAt: '10/05/2026'
+    createdAt: '10/05/2026',
+    notes: 'Thường bảo vệ sớm hơn lịch chung 1 tuần, ưu tiên họp review code vào cuối tuần.'
   },
   {
     id: 'CL-104',
@@ -373,8 +388,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0934567890',
     email: 'bao.pham@uet.vnu.edu.vn',
     school: 'ĐH Công Nghệ - ĐHQGHN',
+    workplace: 'Trường ĐH Công Nghệ - ĐHQGHN',
+    position: 'Sinh Viên CNTT Khóa K66',
     tier: 'Mới',
-    createdAt: '28/06/2026'
+    createdAt: '28/06/2026',
+    notes: 'Cần hỗ trợ cấu hình Dockerfile và kịch bản demo trên server cloud Linux.'
   },
   {
     id: 'CL-105',
@@ -382,8 +400,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0945678901',
     email: 'lan.vu@meditech.edu.vn',
     school: 'ĐH Y Dược / ĐH CNTT',
+    workplace: 'Bệnh viện Thống Nhất / ĐH Y Dược TP.HCM',
+    position: 'Bác Sĩ Thực Tập / Học Viên IT Y Tế',
     tier: 'Mới',
-    createdAt: '02/07/2026'
+    createdAt: '02/07/2026',
+    notes: 'Đề tài bệnh án điện tử, cần bảo mật dữ liệu mẫu bệnh nhân giả lập và kiểm thử kỹ.'
   },
   {
     id: 'CL-106',
@@ -391,8 +412,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0967890123',
     email: 'khang.do@fpt.edu.vn',
     school: 'Đại Học FPT',
+    workplace: 'FPT Software (Phân hiệu ĐH FPT TP.HCM)',
+    position: 'Fresher Developer / Học viên',
     tier: 'Thân thiết',
-    createdAt: '18/04/2026'
+    createdAt: '18/04/2026',
+    notes: 'Ưa thích công nghệ Blockchain & Next.js, thường xuyên phản hồi nhanh qua Zalo.'
   },
   {
     id: 'CL-107',
@@ -400,8 +424,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0978901234',
     email: 'dung.bui@law.edu.vn',
     school: 'ĐH Luật / ĐH CNTT',
+    workplace: 'Văn Phòng Luật Sư Sài Gòn / ĐH Luật TP.HCM',
+    position: 'Học Viên Văn Bằng 2 CNTT',
     tier: 'Mới',
-    createdAt: '05/07/2026'
+    createdAt: '05/07/2026',
+    notes: 'Cần chú trọng phân tích yêu cầu nghiệp vụ và lưu đồ BPMN rõ ràng trong báo cáo.'
   },
   {
     id: 'CL-108',
@@ -409,8 +436,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0918902345',
     email: 'huy.ngo@hcmute.edu.vn',
     school: 'ĐH Sư Phạm Kỹ Thuật TP.HCM',
+    workplace: 'ĐH Sư Phạm Kỹ Thuật TP.HCM',
+    position: 'Sinh Viên Năm 4 Chuyên Ngành Mạng & Web',
     tier: 'Giới thiệu người khác',
-    createdAt: '25/05/2026'
+    createdAt: '25/05/2026',
+    notes: 'Yêu cầu có slide thuyết trình song ngữ (tiếng Anh và tiếng Việt) phục vụ hội đồng.'
   },
   {
     id: 'CL-109',
@@ -418,8 +448,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0929013456',
     email: 'phong.ly@ptit.edu.vn',
     school: 'Học Viện Công Nghệ Bưu Chính Viễn Thông',
+    workplace: 'Học Viện Công Nghệ Bưu Chính Viễn Thông (Cơ Sở TP.HCM)',
+    position: 'Học Viên Khóa Chuyên Sâu AI & Thị Giác Máy Tính',
     tier: 'Thân thiết',
-    createdAt: '10/04/2026'
+    createdAt: '10/04/2026',
+    notes: 'Cần file trọng số YOLOv8 pre-trained và notebook hướng dẫn train trên Google Colab Pro.'
   },
   {
     id: 'CL-110',
@@ -427,8 +460,11 @@ export const INITIAL_CLIENTS: LubpyClientItem[] = [
     phone: '0939124567',
     email: 'ha.trinh@hub.edu.vn',
     school: 'Đại Học Ngân Hàng',
+    workplace: 'Ngân Hàng TMCP Quân Đội (MB Bank) / ĐH Ngân Hàng TP.HCM',
+    position: 'Chuyên Viên Phân Tích Nghiệp Vụ (BA)',
     tier: 'Mới',
-    createdAt: '12/07/2026'
+    createdAt: '12/07/2026',
+    notes: 'Cần tài liệu SRS và sơ đồ Use Case, ERD chuẩn mực phục vụ bảo vệ đề tài tốt nghiệp.'
   }
 ];
 
@@ -524,46 +560,135 @@ function ClientDetailModalContent({
   const clientPrjs = projects.filter(p => (p.clientName || '').toLowerCase() === (selectedClientForModal?.name || '').toLowerCase());
   const totalSpent = clientPrjs.reduce((sum, p) => sum + p.priceVnd, 0);
 
+  // Determine payment status
+  const hasIncomplete = clientPrjs.some(p => p.status !== 'Completed');
+  const paymentStatusText = clientPrjs.length === 0
+    ? 'Chưa phát sinh giao dịch'
+    : !hasIncomplete
+      ? `✅ Đã Tất Toán 100% (${formatVND(totalSpent)})`
+      : `🟡 Đã Thanh Toán Cọc 50% (${formatVND(totalSpent * 0.5)}) • Còn lại: ${formatVND(totalSpent * 0.5)}`;
+
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="bg-slate-950 p-3.5 rounded-xl border border-white/5 space-y-1">
-          <div className="text-[10px] uppercase font-bold text-gray-400">Tổng Đồ Án Đã Đặt</div>
-          <div className="text-lg font-black text-white">{clientPrjs.length} Đồ án</div>
+    <div className="space-y-6">
+      {/* 1 to 4: HỒ SƠ KHÁCH HÀNG: HỌ TÊN, SĐT, NƠI LÀM VIỆC, CHỨC VỤ */}
+      <div className="bg-slate-950/80 p-4 rounded-2xl border border-sky-500/20 space-y-3">
+        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+          <span className="text-[11px] font-black uppercase text-sky-400 tracking-wider flex items-center gap-1.5">
+            <span>👤</span> Thông Tin Định Danh Khách Hàng
+          </span>
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+            Hồ sơ khách hàng
+          </span>
         </div>
-        <div className="bg-slate-950 p-3.5 rounded-xl border border-white/5 space-y-1">
-          <div className="text-[10px] uppercase font-bold text-gray-400">Tổng Giá Trị Đã Giao Dịch</div>
-          <div className="text-lg font-black text-emerald-400">{formatVND(totalSpent)}</div>
-        </div>
-        <div className="bg-slate-950 p-3.5 rounded-xl border border-white/5 space-y-1 col-span-2 sm:col-span-1">
-          <div className="text-[10px] uppercase font-bold text-gray-400">Tình Trạng Thanh Toán</div>
-          <div className="text-xs font-bold text-sky-300">Đã cọc 50% / Hoàn tất</div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+          {/* 1. Họ Tên */}
+          <div className="bg-slate-900/90 p-3 rounded-xl border border-white/5">
+            <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">1. Họ &amp; Tên Khách Hàng:</span>
+            <div className="text-sm font-black text-white">{selectedClientForModal.name}</div>
+            <div className="text-[10px] text-gray-400 font-mono mt-0.5">{selectedClientForModal.email}</div>
+          </div>
+
+          {/* 2. Số Điện Thoại */}
+          <div className="bg-slate-900/90 p-3 rounded-xl border border-white/5">
+            <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">2. Số Điện Thoại / Zalo:</span>
+            <div className="text-sm font-black text-emerald-400 font-mono">{selectedClientForModal.phone}</div>
+            <div className="text-[10px] text-gray-400 font-mono mt-0.5">Kênh liên hệ chính thức</div>
+          </div>
+
+          {/* 3. Nơi Làm Việc (Trường Học / Viện / Công Ty) */}
+          <div className="bg-slate-900/90 p-3 rounded-xl border border-white/5">
+            <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">3. Nơi Làm Việc / Trường Học:</span>
+            <div className="text-xs font-bold text-sky-200">
+              {selectedClientForModal.workplace || selectedClientForModal.school || 'Đang cập nhật'}
+            </div>
+            <div className="text-[10px] text-gray-400 font-mono mt-0.5">Đơn vị công tác / Đào tạo</div>
+          </div>
+
+          {/* 4. Chức Vụ */}
+          <div className="bg-slate-900/90 p-3 rounded-xl border border-white/5">
+            <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">4. Chức Vụ / Vị Trí:</span>
+            <div className="text-xs font-bold text-amber-300">
+              {selectedClientForModal.position || 'Học viên / Sinh viên CNTT'}
+            </div>
+            <div className="text-[10px] text-gray-400 font-mono mt-0.5">Hạng thành viên: {selectedClientForModal.tier}</div>
+          </div>
         </div>
       </div>
 
-      {/* PROJECT HISTORY LIST */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-extrabold uppercase text-gray-300 tracking-wider">📜 Lịch Sử Đồ Án Thuộc Về Khách Hàng Này:</h4>
+      {/* 5, 6, 7: SỐ ĐỒ ÁN, SỐ TIỀN GIAO DỊCH, TÌNH TRẠNG THANH TOÁN */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* 5. Số Đồ Án Đã Đặt */}
+        <div className="bg-slate-950 p-3.5 rounded-xl border border-white/10 space-y-1">
+          <div className="text-[10px] uppercase font-bold text-gray-400">5. Số Đồ Án Đã Đặt</div>
+          <div className="text-xl font-black text-white font-mono">{clientPrjs.length} Đồ án</div>
+          <div className="text-[10px] text-sky-400">Tổng đề tài yêu cầu</div>
+        </div>
+
+        {/* 6. Số Tiền Giao Dịch */}
+        <div className="bg-slate-950 p-3.5 rounded-xl border border-white/10 space-y-1">
+          <div className="text-[10px] uppercase font-bold text-gray-400">6. Số Tiền Giao Dịch</div>
+          <div className="text-xl font-black text-emerald-400 font-mono">{formatVND(totalSpent)}</div>
+          <div className="text-[10px] text-emerald-400/80">Tổng doanh số tích lũy</div>
+        </div>
+
+        {/* 7. Tình Trạng Thanh Toán */}
+        <div className="bg-slate-950 p-3.5 rounded-xl border border-white/10 space-y-1">
+          <div className="text-[10px] uppercase font-bold text-gray-400">7. Tình Trạng Thanh Toán</div>
+          <div className="text-xs font-bold text-amber-300 leading-tight">{paymentStatusText}</div>
+          <div className="text-[10px] text-gray-400">Theo tiến độ hợp đồng</div>
+        </div>
+      </div>
+
+      {/* 8. LỊCH SỬ NHỮNG ĐỒ ÁN MÀ KHÁCH HÀNG ĐÃ YÊU CẦU */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-extrabold uppercase text-gray-300 tracking-wider flex items-center gap-1.5">
+            <span>📜</span> 8. Lịch Sử Những Đồ Án Mà Khách Hàng Đã Yêu Cầu ({clientPrjs.length}):
+          </h4>
+          <span className="text-[10px] text-gray-400 font-mono">Dữ liệu kiểm toán</span>
+        </div>
+
         {clientPrjs.length === 0 ? (
           <div className="text-center py-6 bg-slate-950/60 rounded-xl border border-dashed border-white/10 text-xs text-gray-400">
-            Chưa có đồ án chính thức nào được kích hoạt.
+            Chưa có đồ án chính thức nào được kích hoạt từ khách hàng này.
           </div>
         ) : (
           <div className="space-y-2">
             {clientPrjs.map(p => (
-              <div key={p.id} className="p-3 bg-slate-950 rounded-xl border border-white/10 flex justify-between items-center text-xs">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-white flex items-center gap-2">
-                    <span className="font-mono text-sky-400">[{p.id}]</span>
-                    <span>{p.title}</span>
+              <div key={p.id} className="p-3.5 bg-slate-950 rounded-xl border border-white/10 hover:border-sky-500/30 transition-all text-xs space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="space-y-1">
+                    <div className="font-bold text-white flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                        {p.id}
+                      </span>
+                      <span className="text-sm">{p.title}</span>
+                    </div>
+                    <div className="text-gray-400 font-mono text-[11px]">
+                      Stack: <span className="text-gray-200">{p.techStack}</span> | Hạn bảo vệ: <span className="text-amber-300">{p.defenseDate}</span>
+                    </div>
                   </div>
-                  <div className="text-gray-400 font-mono">
-                    Hạn bảo vệ: {p.defenseDate} | Tiến độ: {p.progress}%
+
+                  <div className="text-right shrink-0">
+                    <div className="font-bold text-emerald-400 font-mono text-sm">{formatVND(p.priceVnd)}</div>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20 font-bold block mt-1">
+                      {p.status}
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold text-emerald-400 font-mono">{formatVND(p.priceVnd)}</div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">{p.status}</span>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-gray-400 font-mono">
+                    <span>Tiến độ thực hiện kỹ thuật:</span>
+                    <span className="text-sky-400 font-bold">{p.progress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-white/5">
+                    <div 
+                      className="bg-gradient-to-r from-sky-500 to-emerald-400 h-1.5 rounded-full" 
+                      style={{ width: `${p.progress}%` }} 
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -571,20 +696,34 @@ function ClientDetailModalContent({
         )}
       </div>
 
-      {/* PRIVATE COUNSELOR NOTES */}
-      <div className="space-y-2 pt-2 border-t border-white/10">
-        <h4 className="text-xs font-extrabold uppercase text-gray-300 tracking-wider">📝 Ghi Chú Riêng Tư Dành Cho Tư Vấn Viên:</h4>
+      {/* 9. NHỮNG GHI CHÚ CỦA KHÁCH HÀNG */}
+      <div className="space-y-2 pt-3 border-t border-white/10">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-extrabold uppercase text-gray-300 tracking-wider flex items-center gap-1.5">
+            <span>📝</span> 9. Những Ghi Chú Của Khách Hàng &amp; Yêu Cầu Riêng Tư:
+          </h4>
+          <span className="text-[10px] text-amber-400 font-mono font-bold">Lưu tự động</span>
+        </div>
+
+        {/* Existing Note from Customer Registration */}
+        {selectedClientForModal.notes && (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-200 leading-relaxed">
+            <span className="font-bold block mb-0.5 text-amber-300">Yêu cầu từ khách hàng khi đăng ký:</span>
+            {selectedClientForModal.notes}
+          </div>
+        )}
+
         <textarea 
           rows={3}
-          value={clientNotes[selectedClientForModal.phone] || ''}
+          value={clientNotes[selectedClientForModal.phone] || selectedClientForModal.notes || ''}
           onChange={(e) => {
             const val = e.target.value;
             const updated = { ...clientNotes, [selectedClientForModal.phone]: val };
             setClientNotes(updated);
             localStorage.setItem('lubpy_admin_client_notes', JSON.stringify(updated));
           }}
-          placeholder="Ghi chú thói quen, yêu cầu đặc biệt của sinh viên này..."
-          className="w-full bg-slate-950 border border-white/10 text-xs text-gray-200 p-3 rounded-xl focus:border-indigo-500"
+          placeholder="Ghi chú các yêu cầu đặc biệt, lưu ý tiến độ hoặc thói quen của khách hàng này..."
+          className="w-full bg-slate-950 border border-white/10 text-xs text-gray-200 p-3 rounded-xl focus:border-sky-500 font-sans"
         />
       </div>
     </div>
@@ -740,20 +879,17 @@ function AppointDepartmentHeadModalContent({
                   id="appoint-head-avatar-upload"
                   type="file" 
                   accept="image/*"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      if (file.size > 5 * 1024 * 1024) {
-                        alert('Dung lượng ảnh vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.');
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        if (typeof reader.result === 'string') {
-                          setAppointPhotoUrl(reader.result);
+                      try {
+                        const compressed = await compressImageFile(file, 256, 256, 0.75);
+                        if (compressed) {
+                          setAppointPhotoUrl(compressed);
                         }
-                      };
-                      reader.readAsDataURL(file);
+                      } catch (err) {
+                        console.error('Error compressing appoint photo:', err);
+                      }
                     }
                   }}
                   className="hidden"
@@ -1058,8 +1194,17 @@ export default function AdminFintrixityDashboard({
 
   // Active Admin Sidebar Tab
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'projects' | 'clients' | 'devs' | 'leads' | 'repository' | 'settings' | 'reviews'
+    'overview' | 'projects' | 'contracts' | 'clients' | 'devs' | 'leads' | 'repository' | 'settings' | 'reviews'
   >('overview');
+
+  const [workflowProjects, setWorkflowProjects] = useState<WorkflowProject[]>(() => getWorkflowProjects());
+  const [selectedWorkflowContract, setSelectedWorkflowContract] = useState<WorkflowProject | null>(null);
+
+  useEffect(() => {
+    const handleWf = () => setWorkflowProjects(getWorkflowProjects());
+    window.addEventListener('lubpy_workflow_projects_updated', handleWf);
+    return () => window.removeEventListener('lubpy_workflow_projects_updated', handleWf);
+  }, []);
 
   const [clientsSubTab, setClientsSubTab] = useState<'list' | 'reviews'>('list');
 
@@ -1229,8 +1374,11 @@ export default function AdminFintrixityDashboard({
   const [showAddDevModal, setShowAddDevModal] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
   const [selectedProjectForDev, setSelectedProjectForDev] = useState<LubpyProjectItem | null>(null);
+  const [selectedProjectForInspection, setSelectedProjectForInspection] = useState<LubpyProjectItem | null>(null);
   const [selectedLeadForConversion, setSelectedLeadForConversion] = useState<LubpyLeadItem | null>(null);
+  const [selectedLeadForReview, setSelectedLeadForReview] = useState<LubpyLeadItem | null>(null);
   const [selectedClientForModal, setSelectedClientForModal] = useState<LubpyClientItem | null>(null);
+  const [projectProgressFilter, setProjectProgressFilter] = useState<'all' | 'completed' | 'in_progress' | 'urgent'>('all');
   const [selectedDeptForAppoint, setSelectedDeptForAppoint] = useState<string | null>(null);
   const [appointPresetSpecialty, setAppointPresetSpecialty] = useState<string | null>(null);
   const [replacingHeadUid, setReplacingHeadUid] = useState<string | null>(null);
@@ -1774,9 +1922,11 @@ export default function AdminFintrixityDashboard({
 
     const finalPhotoUrl = appointPhotoUrl.trim() || existingHeadToReplace?.photoUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}&backgroundColor=0f172a`;
 
+    const customPass = password.trim();
     const dobDigits = dob ? dobTo8Digits(dob) : '';
-    // RÀNG BUỘC ĐIỀU KIỆN: Nếu có ngày tháng năm sinh, mật khẩu BẮT BUỘC dùng 8 số ngày sinh
-    const finalPassword = dobDigits || password.trim() || existingHeadToReplace?.password || '123456';
+    const defaultDeptPass = deptKey === 'tech' ? 'tech2026' : deptKey === 'cs' ? 'cs2026' : deptKey === 'hr' ? 'hr2026' : deptKey === 'accounting' ? 'acc2026' : '123456';
+    // Ưu tiên: Mật khẩu nhập riêng -> 8 số ngày sinh -> Mật khẩu cũ -> Mật khẩu mặc định ngành
+    const finalPassword = customPass || dobDigits || existingHeadToReplace?.password || defaultDeptPass;
 
     const newUid = isReplacing ? replacingHeadUid! : `head_${deptKey}_${Date.now()}`;
 
@@ -1961,6 +2111,38 @@ export default function AdminFintrixityDashboard({
         localStorage.setItem('lubpy_users', JSON.stringify(updatedUsers));
       }
     } catch (err) {}
+
+    // Synchronize savedAccounts
+    try {
+      saveAccountToStorage({
+        email: updatedAdmin.email,
+        name: updatedAdmin.name,
+        role: 'admin',
+        isDepartmentHead: true,
+        department: updatedAdmin.department,
+        departmentTitle: updatedAdmin.departmentTitle,
+        photoUrl: updatedAdmin.photoUrl,
+        password: updatedAdmin.password,
+        adminSecurityKey: 'ADMIN_SUPER_KEY_2026',
+        savePasswordPreference: true
+      });
+    } catch (e) {}
+
+    // Synchronize to backend storage
+    try {
+      api.auth.syncAccount({
+        email: updatedAdmin.email,
+        name: updatedAdmin.name,
+        role: 'SUPER_ADMIN',
+        password: updatedAdmin.password,
+        isDepartmentHead: true,
+        department: updatedAdmin.department,
+        departmentTitle: updatedAdmin.departmentTitle,
+        phone: updatedAdmin.phone,
+        dob: updatedAdmin.dob,
+        photoUrl: updatedAdmin.photoUrl
+      });
+    } catch (e) {}
 
     if (onUpdateUser) {
       onUpdateUser(updatedAdmin);
@@ -2180,6 +2362,24 @@ export default function AdminFintrixityDashboard({
                 </span>
               </button>
 
+              {/* 2.5. Contracts */}
+              <button 
+                onClick={() => setActiveTab('contracts')}
+                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  activeTab === 'contracts' 
+                    ? 'bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 text-white shadow-lg border border-amber-400/40' 
+                    : 'text-gray-400 hover:text-white hover:bg-[#17181b]'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <ShieldCheckIcon className="w-4 h-4 text-amber-400" />
+                  <span>📜 Ký Hợp Đồng</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-300 font-bold rounded-full border border-amber-500/30">
+                  {workflowProjects.length} HĐ
+                </span>
+              </button>
+
               {/* 3. Clients */}
               <button 
                 onClick={() => setActiveTab('clients')}
@@ -2191,10 +2391,10 @@ export default function AdminFintrixityDashboard({
               >
                 <span className="flex items-center gap-3">
                   <UsersIcon className="w-4 h-4 text-emerald-400" />
-                  <span>👥 Quản Lý Học Viên</span>
+                  <span>👥 Quản Lý Khách Hàng</span>
                 </span>
                 <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-300 font-bold rounded-full">
-                  {allClientNames.length} HV
+                  {allClientNames.length} KH
                 </span>
               </button>
 
@@ -2216,7 +2416,7 @@ export default function AdminFintrixityDashboard({
                 </span>
               </button>
 
-              {/* 5. Leads & Inquiries */}
+              {/* 5. Leads / Quotation List */}
               <button 
                 onClick={() => setActiveTab('leads')}
                 className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
@@ -2227,7 +2427,7 @@ export default function AdminFintrixityDashboard({
               >
                 <span className="flex items-center gap-3">
                   <MessageSquareIcon className="w-4 h-4 text-purple-400" />
-                  <span>💬 Yêu Cầu Báo Giá</span>
+                  <span>📋 Danh Sách Báo Giá</span>
                 </span>
                 <span className="flex items-center gap-1">
                   {newLeadsCount > 0 && (
@@ -2259,7 +2459,7 @@ export default function AdminFintrixityDashboard({
                 </span>
               </button>
 
-              {/* 7. Customer Reviews & CSAT */}
+              {/* 7. Customer Reviews */}
               <button 
                 onClick={() => setActiveTab('reviews')}
                 className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
@@ -2270,7 +2470,7 @@ export default function AdminFintrixityDashboard({
               >
                 <span className="flex items-center gap-3">
                   <StarIcon className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  <span>⭐ Đánh Giá &amp; CSAT</span>
+                  <span>⭐ Nhận Xét Từ Khách Hàng</span>
                 </span>
                 <span className="text-[9px] px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded font-mono font-bold">
                   {customerReviewsCount} reviews • {reviewsAvgScore} ⭐
@@ -2759,12 +2959,12 @@ export default function AdminFintrixityDashboard({
                     <thead>
                       <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-wider text-gray-400 bg-slate-950/40">
                         <th className="py-3.5 pl-4">Mã Đồ Án</th>
-                        <th className="py-3.5">Tên Đề Tài</th>
+                        <th className="py-3.5">Tên Đề Tài &amp; Kỹ Sư Phụ Trách</th>
                         <th className="py-3.5">Khách Hàng / Trường</th>
                         <th className="py-3.5">Công Nghệ</th>
                         <th className="py-3.5">Hạn Bảo Vệ</th>
-                        <th className="py-3.5">Trạng Thái</th>
-                        <th className="py-3.5 pr-4 text-center">Hành Động</th>
+                        <th className="py-3.5">Tiến Trình Kỹ Thuật (Tech Team)</th>
+                        <th className="py-3.5 pr-4 text-center">Giám Sát Kỹ Thuật</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5 text-xs">
@@ -2785,7 +2985,7 @@ export default function AdminFintrixityDashboard({
                               </span>
                             </td>
 
-                            {/* Cột 2: Tên Đề Tài & Thumbnail */}
+                            {/* Cột 2: Tên Đề Tài & Kỹ sư kỹ thuật */}
                             <td className="py-4 font-bold text-white max-w-sm pr-3">
                               <div className="flex items-center gap-3">
                                 {p.thumbnailUrl ? (
@@ -2802,8 +3002,8 @@ export default function AdminFintrixityDashboard({
                                 )}
                                 <div className="min-w-0">
                                   <div className="truncate">{p.title}</div>
-                                  <div className="text-[10px] text-gray-400 font-normal font-mono mt-0.5">
-                                    Dev: {p.assignedDev}
+                                  <div className="text-[10px] text-gray-400 font-normal font-mono mt-0.5 flex items-center gap-1.5">
+                                    <span>👨‍💻 Kỹ sư: <strong className="text-sky-300">{p.assignedDev}</strong></span>
                                   </div>
                                 </div>
                               </div>
@@ -2827,25 +3027,33 @@ export default function AdminFintrixityDashboard({
                               {p.defenseDate}
                             </td>
 
-                            {/* Cột 6: Trạng Thái */}
+                            {/* Cột 6: Tiến Trình Kỹ Thuật (Tech Team) */}
                             <td className="py-4">
-                              {getStatusBadge(p.status)}
+                              <div className="space-y-1 min-w-[130px]">
+                                <div className="flex justify-between text-[10px] font-mono">
+                                  <span className="text-gray-400">Tiến độ:</span>
+                                  <span className="text-sky-300 font-bold">{p.progress}%</span>
+                                </div>
+                                <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-white/5">
+                                  <div 
+                                    className={`h-1.5 rounded-full ${p.status === 'Completed' ? 'bg-emerald-400' : 'bg-sky-500'}`} 
+                                    style={{ width: `${p.progress}%` }} 
+                                  />
+                                </div>
+                                <div className="pt-0.5">
+                                  {getStatusBadge(p.status)}
+                                </div>
+                              </div>
                             </td>
 
-                            {/* Cột 7: Hành Động */}
+                            {/* Cột 7: Giám Sát / Xem Tiến Trình Kỹ Thuật */}
                             <td className="py-4 pr-4 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <select 
-                                  value={p.status}
-                                  onChange={(e) => handleStatusChange(p.id, e.target.value as any)}
-                                  className="bg-slate-950 border border-white/10 text-[10px] text-gray-300 px-2 py-1 rounded-lg cursor-pointer focus:outline-none"
-                                >
-                                  <option value="Pending">Pending</option>
-                                  <option value="In Progress">In Progress</option>
-                                  <option value="Coaching">Coaching</option>
-                                  <option value="Completed">Completed</option>
-                                </select>
-                              </div>
+                              <button 
+                                onClick={() => setSelectedProjectForInspection(p)}
+                                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 text-[10px] font-bold rounded-lg cursor-pointer transition-all flex items-center gap-1 mx-auto"
+                              >
+                                👁️ Xem Tiến Trình
+                              </button>
                             </td>
 
                           </tr>
@@ -2907,20 +3115,78 @@ export default function AdminFintrixityDashboard({
                 </div>
               </div>
 
+              {/* Bộ lọc xem xét đồ án cho Admin */}
+              <div className="flex flex-wrap items-center gap-2 bg-slate-900/60 p-2.5 rounded-2xl border border-white/10">
+                <span className="text-xs font-bold text-gray-400 px-2">Xem tiến độ:</span>
+                <button
+                  onClick={() => setProjectProgressFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    projectProgressFilter === 'all'
+                      ? 'bg-sky-500 text-slate-950 font-black'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  Tất Cả ({projects.length})
+                </button>
+                <button
+                  onClick={() => setProjectProgressFilter('completed')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    projectProgressFilter === 'completed'
+                      ? 'bg-emerald-500 text-slate-950 font-black'
+                      : 'text-gray-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                  }`}
+                >
+                  <span>✅ Đã Nghiệm Thu</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-950/40">{completedCount}</span>
+                </button>
+                <button
+                  onClick={() => setProjectProgressFilter('in_progress')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    projectProgressFilter === 'in_progress'
+                      ? 'bg-blue-500 text-white font-black'
+                      : 'text-gray-400 hover:text-blue-300 hover:bg-blue-500/10'
+                  }`}
+                >
+                  <span>⚙️ Đang Thực Hiện</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-950/40">{projects.length - completedCount}</span>
+                </button>
+                <button
+                  onClick={() => setProjectProgressFilter('urgent')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    projectProgressFilter === 'urgent'
+                      ? 'bg-red-500 text-white font-black'
+                      : 'text-gray-400 hover:text-red-300 hover:bg-red-500/10'
+                  }`}
+                >
+                  <span>🚨 Cận Hạn Bảo Vệ</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-950/40">{urgentDefenseCount}</span>
+                </button>
+              </div>
+
               {/* Full Projects Grid / Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {projects.length === 0 ? (
+                {projects.filter(p => {
+                  if (projectProgressFilter === 'completed') return p.status === 'Completed';
+                  if (projectProgressFilter === 'in_progress') return p.status !== 'Completed';
+                  if (projectProgressFilter === 'urgent') return isUrgentDefense(p.defenseDate);
+                  return true;
+                }).length === 0 ? (
                   <div className="col-span-full text-center py-16 bg-slate-900/40 border border-dashed border-white/10 rounded-2xl space-y-3">
                     <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center mx-auto text-xl">
                       📁
                     </div>
-                    <h4 className="text-base font-bold text-white">Chưa có dự án / đồ án nào</h4>
+                    <h4 className="text-base font-bold text-white">Không có đồ án trong mục này</h4>
                     <p className="text-xs text-gray-400 max-w-md mx-auto">
-                      Danh sách đồ án tiếp nhận do Đội ngũ Kỹ thuật trực tiếp cập nhật và triển khai.
+                      Admin đang ở chế độ xem xét tiến độ và giám sát đồ án đã nghiệm thu từ Đội ngũ Kỹ thuật.
                     </p>
                   </div>
                 ) : (
-                  projects.map(p => {
+                  projects.filter(p => {
+                    if (projectProgressFilter === 'completed') return p.status === 'Completed';
+                    if (projectProgressFilter === 'in_progress') return p.status !== 'Completed';
+                    if (projectProgressFilter === 'urgent') return isUrgentDefense(p.defenseDate);
+                    return true;
+                  }).map(p => {
                     const urgent = isUrgentDefense(p.defenseDate);
                     return (
                       <div key={p.id} className={`bg-slate-900/60 border rounded-2xl p-5 space-y-4 shadow-xl relative transition-all ${
@@ -2944,7 +3210,7 @@ export default function AdminFintrixityDashboard({
                           <div className="relative w-full h-36 rounded-xl overflow-hidden bg-slate-950 border border-white/10 group">
                             <img 
                               src={p.thumbnailUrl} 
-                              alt={p.title}
+                              alt={p.title} 
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               referrerPolicy="no-referrer"
                               loading="lazy"
@@ -2982,35 +3248,39 @@ export default function AdminFintrixityDashboard({
                           </div>
                         </div>
 
-                        {/* Interactive Progress Bar */}
-                        <div className="space-y-1.5">
+                        {/* Read-Only Technical Progress & Acceptance Status for Admin Oversight */}
+                        <div className="space-y-2 bg-slate-950/70 p-3 rounded-xl border border-white/5">
                           <div className="flex justify-between items-center text-xs font-mono">
                             <span className="text-gray-400">Tiến độ hoàn thành:</span>
-                            <div className="flex items-center gap-2">
-                              <button 
-                                onClick={() => handleProgressChange(p.id, p.progress - 10)} 
-                                className="w-5 h-5 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded flex items-center justify-center text-xs cursor-pointer"
-                              >-
-                              </button>
-                              <span className="text-sky-400 font-bold w-10 text-center">{p.progress}%</span>
-                              <button 
-                                onClick={() => handleProgressChange(p.id, p.progress + 10)} 
-                                className="w-5 h-5 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded flex items-center justify-center text-xs cursor-pointer"
-                              >+
-                              </button>
-                            </div>
+                            <span className="text-sky-400 font-bold text-sm">{p.progress}%</span>
                           </div>
-                          <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-white/5">
-                            <div className="bg-gradient-to-r from-sky-600 to-sky-400 h-2 rounded-full transition-all duration-500" style={{ width: `${p.progress}%` }} />
+                          <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-white/5">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-500 ${p.status === 'Completed' ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'bg-gradient-to-r from-sky-600 to-sky-400'}`} 
+                              style={{ width: `${p.progress}%` }} 
+                            />
+                          </div>
+                          <div className="pt-1">
+                            {p.status === 'Completed' ? (
+                              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                                <span>✅</span>
+                                <span>Đã Nghiệm Thu: Đội ngũ Kỹ thuật đã kiểm thử &amp; bàn giao 100%</span>
+                              </div>
+                            ) : (
+                              <div className="p-2 bg-sky-500/10 border border-sky-500/20 rounded-lg text-sky-300 text-xs font-bold flex items-center gap-1.5">
+                                <span>⚙️</span>
+                                <span>Tiến độ kỹ thuật: Đang thực hiện ({p.progress}%) - Do Đội ngũ Kỹ thuật phụ trách</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
                         <div className="pt-2 flex gap-2">
                           <button 
-                            onClick={() => handleStatusChange(p.id, 'Completed')}
-                            className="w-full py-2 px-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold cursor-pointer transition-all text-center"
+                            onClick={() => setSelectedProjectForInspection(p)}
+                            className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-xl text-xs font-bold cursor-pointer transition-all text-center flex items-center justify-center gap-1.5"
                           >
-                            Nghiệm Thu Đồ Án
+                            👁️ Xem Chi Tiết Tiến Độ &amp; Báo Cáo Kỹ Thuật
                           </button>
                         </div>
                       </div>
@@ -3021,16 +3291,174 @@ export default function AdminFintrixityDashboard({
             </div>
           )}
 
-          {/* ================= TAB 3: CLIENTS (QUẢN LÝ HỌC VIÊN & ĐÁNH GIÁ KHÁCH HÀNG) ================= */}
+          {/* ================= TAB 2.5: CONTRACTS (KÝ HỢP ĐỒNG) ================= */}
+          {activeTab === 'contracts' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-black uppercase text-amber-300 px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded">
+                      Chữ Ký Số Pháp Lý
+                    </span>
+                    <span className="text-xs text-gray-400 font-mono font-bold">
+                      Quy trình ký hợp đồng số điện tử (Viettel-CA, VNPT-CA, FPT-CA)
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-black text-white flex items-center gap-2">
+                    <ShieldCheckIcon className="w-6 h-6 text-amber-400" />
+                    <span>Ký Hợp Đồng</span>
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Admin xem xét các hợp đồng cần ký duyệt từ các trưởng nghiệp vụ (CSKH, Tech Lead, Kế toán). Nếu không có gì sai sót, Admin sẽ ký hợp đồng bằng Chữ Ký Số CA phổ biến nhất hiện nay.
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[10px] uppercase text-gray-400 block font-bold">Tổng Hồ Sơ Hợp Đồng</span>
+                  <span className="text-xl font-black text-amber-300 font-mono">{workflowProjects.length} Hợp đồng</span>
+                </div>
+              </div>
+
+              {/* Status summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-slate-900/80 p-4 rounded-2xl border border-sky-500/30">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">1. CSKH Thẩm Định</span>
+                  <div className="text-xl font-black font-mono text-sky-400 mt-1">
+                    {workflowProjects.filter(p => p.contract?.signatures?.some(s => s.role === 'CS_HEAD')).length}/{workflowProjects.length}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">Tiếp nhận yêu cầu</div>
+                </div>
+
+                <div className="bg-slate-900/80 p-4 rounded-2xl border border-blue-500/30">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">2. Tech Lead Ký Duyệt</span>
+                  <div className="text-xl font-black font-mono text-blue-400 mt-1">
+                    {workflowProjects.filter(p => p.contract?.signatures?.some(s => s.role === 'TECH_HEAD')).length}/{workflowProjects.length}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">Cam kết kỹ thuật &amp; hạn chót</div>
+                </div>
+
+                <div className="bg-slate-900/80 p-4 rounded-2xl border border-emerald-500/30">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">3. Kế Toán Trưởng</span>
+                  <div className="text-xl font-black font-mono text-emerald-400 mt-1">
+                    {workflowProjects.filter(p => p.contract?.signatures?.some(s => s.role === 'ACCOUNTING_HEAD')).length}/{workflowProjects.length}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">Thẩm tra chi phí &amp; hóa đơn</div>
+                </div>
+
+                <div className="bg-slate-900/80 p-4 rounded-2xl border border-amber-500/30">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">4. Admin Phê Chuẩn (Chữ Ký Số)</span>
+                  <div className="text-xl font-black font-mono text-amber-300 mt-1">
+                    {workflowProjects.filter(p => p.contract?.signatures?.some(s => s.role === 'SUPER_ADMIN')).length}/{workflowProjects.length}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">Chữ ký số có giá trị pháp lý</div>
+                </div>
+              </div>
+
+              {/* Projects Contracts List */}
+              <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                    Danh Sách Hợp Đồng Cần Ký Duyệt
+                  </h3>
+                  <span className="text-xs text-amber-400 font-bold">
+                    Admin xem xét &amp; ký chữ ký số
+                  </span>
+                </div>
+
+                {workflowProjects.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 text-xs">
+                    Chưa có dự án nào trong quy trình hợp đồng. Khi CS tiếp nhận yêu cầu từ khách hàng, hồ sơ sẽ hiển thị tại đây.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {workflowProjects.map((prj) => {
+                      const sigs = prj.contract?.signatures || [];
+                      const hasDirectorSigned = sigs.some(s => s.role === 'SUPER_ADMIN');
+
+                      return (
+                        <div
+                          key={prj.id}
+                          className="p-4 rounded-xl bg-slate-950/80 border border-white/10 hover:border-amber-500/40 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                {prj.id}
+                              </span>
+                              <h4 className="text-sm font-bold text-white">{prj.projectName}</h4>
+                              <span className="text-[10px] text-gray-400 font-mono">({prj.category})</span>
+                            </div>
+
+                            <p className="text-xs text-gray-400">
+                              Khách hàng: <strong className="text-white">{prj.clientName}</strong> • CS: <strong className="text-sky-300">{prj.assignedCS}</strong> • Dev: <strong className="text-indigo-300">{prj.assignedDev}</strong> • Giá: <strong className="text-emerald-400">{formatVnd(prj.totalAmountVnd)}</strong>
+                            </p>
+
+                            {/* 4 Signatures Indicators */}
+                            <div className="flex items-center gap-2 pt-1 flex-wrap text-[10px]">
+                              {[
+                                { key: 'CS_HEAD', label: 'CSKH' },
+                                { key: 'TECH_HEAD', label: 'Tech Lead' },
+                                { key: 'ACCOUNTING_HEAD', label: 'Kế Toán' },
+                                { key: 'SUPER_ADMIN', label: 'Admin (Chữ Ký Số)' }
+                              ].map((roleItem) => {
+                                const signed = sigs.some(s => s.role === roleItem.key);
+                                return (
+                                  <span
+                                    key={roleItem.key}
+                                    className={`px-2 py-0.5 rounded font-bold ${
+                                      signed
+                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                        : 'bg-white/5 text-gray-400 border border-white/10'
+                                    }`}
+                                  >
+                                    {signed ? '✓' : '○'} {roleItem.label}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end md:self-auto">
+                            {hasDirectorSigned ? (
+                              <span className="text-xs text-emerald-400 font-bold px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-1">
+                                <CheckIcon className="w-3.5 h-3.5" /> Đã Ký Số CA Thành Công
+                              </span>
+                            ) : (
+                              <span className="text-xs text-amber-300 font-bold px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-1">
+                                <ClockIcon className="w-3.5 h-3.5" /> Chờ Admin Ký Số
+                              </span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedWorkflowContract(prj)}
+                              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:opacity-95 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <ShieldCheckIcon className="w-4 h-4" />
+                              <span>{hasDirectorSigned ? 'Xem & In Hợp Đồng' : '✍️ Xem Xét & Ký Hợp Đồng Số'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 3: CLIENTS (QUẢN LÝ KHÁCH HÀNG) ================= */}
           {activeTab === 'clients' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-4">
                 <div>
                   <h2 className="text-2xl font-black text-white flex items-center gap-2">
                     <UsersIcon className="w-6 h-6 text-emerald-400" />
-                    <span>Quản Lý Học Viên &amp; Khách Hàng LUBPY</span>
+                    <span>Quản Lý Khách Hàng LUBPY</span>
                   </h2>
-                  <p className="text-xs text-gray-400 mt-1">Danh sách sinh viên, học viên gửi đồ án, tổng giá trị hợp đồng &amp; hồ sơ lịch sử chi tiết</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Danh sách khách hàng đăng ký sử dụng dịch vụ, theo dõi hồ sơ cá nhân, nơi làm việc, chức vụ, số đồ án đã đặt, số tiền giao dịch và lịch sử yêu cầu chi tiết
+                  </p>
                 </div>
                 
                 <div className="flex items-center gap-3">
@@ -3044,7 +3472,7 @@ export default function AdminFintrixityDashboard({
                           : 'text-gray-400 hover:text-white'
                       }`}
                     >
-                      👥 Danh Sách ({allClientNames.length})
+                      👥 Danh Sách Khách Hàng ({allClientNames.length})
                     </button>
                     <button
                       onClick={() => setClientsSubTab('reviews')}
@@ -3055,24 +3483,24 @@ export default function AdminFintrixityDashboard({
                       }`}
                     >
                       <StarIcon className="w-3.5 h-3.5 fill-current" />
-                      <span>⭐ Đánh Giá &amp; CSAT ({customerReviewsCount})</span>
+                      <span>⭐ Nhận Xét Từ Khách Hàng ({customerReviewsCount})</span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* DỮ LIỆU KIỂM SOÁT HỌC VIÊN CHẶT CHẼ DÀNH CHO ADMIN */}
+              {/* DỮ LIỆU KIỂM SOÁT KHÁCH HÀNG DÀNH CHO ADMIN */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-slate-900/80 p-4 rounded-2xl border border-emerald-500/30">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Tổng Học Viên</span>
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Tổng Khách Hàng</span>
                   <div className="text-2xl font-black font-mono text-emerald-400 mt-1">{allClientNames.length}</div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">{uniqueSchools.length} trường ĐH đối tác</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">{uniqueSchools.length} trường ĐH &amp; cơ quan</div>
                 </div>
 
                 <div className="bg-slate-900/80 p-4 rounded-2xl border border-sky-500/30">
                   <span className="text-[10px] uppercase font-bold text-gray-400">Đang Có Đồ Án Chạy</span>
                   <div className="text-2xl font-black font-mono text-sky-400 mt-1">{activeClientProjectsCount}</div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">Sinh viên đang thực hiện</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">Khách hàng đang thực hiện</div>
                 </div>
 
                 <div className="bg-slate-900/80 p-4 rounded-2xl border border-amber-500/30">
@@ -3082,9 +3510,9 @@ export default function AdminFintrixityDashboard({
                 </div>
 
                 <div className="bg-slate-900/80 p-4 rounded-2xl border border-purple-500/30">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Tổng Giá Trị Đồ Án</span>
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Tổng Giao Dịch Đồ Án</span>
                   <div className="text-xl sm:text-2xl font-black font-mono text-purple-300 mt-1">{formatVnd(totalRevenueVnd)}</div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">Giá trị hợp đồng tích lũy</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">Giá trị giao dịch tích lũy</div>
                 </div>
               </div>
 
@@ -3097,9 +3525,9 @@ export default function AdminFintrixityDashboard({
                       <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-xl">
                         👥
                       </div>
-                      <h4 className="text-base font-bold text-white">Chưa có thông tin học viên / khách hàng</h4>
+                      <h4 className="text-base font-bold text-white">Chưa có thông tin khách hàng</h4>
                       <p className="text-xs text-gray-400 max-w-md mx-auto">
-                        Danh sách học viên và sinh viên được quản lý và ghi nhận tự động qua các hợp đồng đồ án và tương tác CSKH.
+                        Danh sách khách hàng đăng ký sử dụng được quản lý và ghi nhận tự động qua các hợp đồng và tài khoản người dùng.
                       </p>
                     </div>
                   ) : (
@@ -3110,7 +3538,10 @@ export default function AdminFintrixityDashboard({
                       const totalSpent = clientProjects.reduce((sum, curr) => sum + curr.priceVnd, 0);
                       const phone = clientObj?.phone || '0901234567';
                       const school = clientObj?.school || clientProjects[0]?.school || 'Đại Học CNTT';
+                      const workplace = clientObj?.workplace || school;
+                      const position = clientObj?.position || 'Khách hàng / Học viên CNTT';
                       const tier = clientObj?.tier || (clientProjects.length > 1 ? 'Thân thiết' : 'Mới');
+                      const noteText = clientObj?.notes || clientNotes[name] || clientNotes[phone] || '';
 
                       return (
                         <div key={idx} className="bg-slate-900/60 border border-white/10 rounded-2xl p-5 space-y-3 shadow-xl hover:border-emerald-500/40 transition-all">
@@ -3119,7 +3550,7 @@ export default function AdminFintrixityDashboard({
                               <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}&backgroundColor=0f172a`} alt={name} className="w-12 h-12 rounded-full border border-emerald-400/30 bg-slate-950" />
                               <div>
                                 <h4 className="text-base font-bold text-white">{name}</h4>
-                                <p className="text-xs text-emerald-400 font-mono">{school}</p>
+                                <p className="text-xs text-emerald-400 font-mono">{workplace}</p>
                               </div>
                             </div>
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
@@ -3129,15 +3560,19 @@ export default function AdminFintrixityDashboard({
 
                           <div className="bg-slate-950/60 p-3 rounded-xl border border-white/5 text-xs space-y-1.5">
                             <div className="flex justify-between text-gray-400">
+                              <span>Chức vụ:</span>
+                              <span className="font-semibold text-gray-200">{position}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-400">
                               <span>SĐT liên hệ:</span>
                               <span className="font-mono text-white font-bold">{phone}</span>
                             </div>
                             <div className="flex justify-between text-gray-400">
-                              <span>Số lượng đồ án:</span>
+                              <span>Số đồ án đã đặt:</span>
                               <span className="font-mono text-sky-300 font-bold">{clientProjects.length} Đồ án</span>
                             </div>
                             <div className="flex justify-between text-gray-400">
-                              <span>Tổng chi phí tích lũy:</span>
+                              <span>Tổng tiền giao dịch:</span>
                               <span className="font-mono text-emerald-400 font-bold">{formatVnd(totalSpent)}</span>
                             </div>
                           </div>
@@ -3147,10 +3582,13 @@ export default function AdminFintrixityDashboard({
                               id: clientObj?.id || `CL-${idx}`,
                               name,
                               phone,
-                              email: clientObj?.email || 'hocvien@lubpy.vn',
+                              email: clientObj?.email || 'khachhang@lubpy.vn',
                               school,
+                              workplace,
+                              position,
                               tier,
-                              createdAt: clientObj?.createdAt || '23/07/2026'
+                              createdAt: clientObj?.createdAt || '23/07/2026',
+                              notes: noteText
                             })}
                             className="w-full py-2 bg-gradient-to-r from-slate-800 to-slate-850 hover:from-emerald-900/40 hover:to-slate-800 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5"
                           >
@@ -3293,31 +3731,33 @@ export default function AdminFintrixityDashboard({
             </div>
           )}
 
-          {/* ================= TAB 5: LEADS (YÊU CẦU BÁO GIÁ) ================= */}
+          {/* ================= TAB 5: LEADS (DANH SÁCH BÁO GIÁ) ================= */}
           {activeTab === 'leads' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-4">
                 <div>
                   <h2 className="text-2xl font-black text-white flex items-center gap-2">
                     <MessageSquareIcon className="w-6 h-6 text-purple-400" />
-                    <span>Yêu Cầu Báo Giá &amp; Tư Vấn Đề Tài Mới</span>
+                    <span>Danh Sách Báo Giá</span>
                   </h2>
-                  <p className="text-xs text-gray-400 mt-1">Danh sách sinh viên gửi yêu cầu tư vấn, do bộ phận Kế toán &amp; Tư vấn tiếp nhận xử lý</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Admin xem xét tình hình báo giá của các khách hàng; việc liên hệ gọi tư vấn do nghiệp vụ Chăm Sóc Khách Hàng (CSKH) đảm nhiệm trực tiếp
+                  </p>
                 </div>
               </div>
 
               {/* DỮ LIỆU KIỂM SOÁT LEADS / BÁO GIÁ CHẶT CHẼ DÀNH CHO ADMIN */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-slate-900/80 p-4 rounded-2xl border border-purple-500/30">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Tổng Yêu Cầu Tư Vấn</span>
-                  <div className="text-2xl font-black font-mono text-purple-300 mt-1">{leads.length} Leads</div>
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Tổng Danh Sách Báo Giá</span>
+                  <div className="text-2xl font-black font-mono text-purple-300 mt-1">{leads.length} Yêu cầu</div>
                   <div className="text-[11px] text-gray-400 mt-0.5">Pipeline: {formatVnd(totalLeadPipelineBudget)}</div>
                 </div>
 
                 <div className="bg-slate-900/80 p-4 rounded-2xl border border-amber-500/30">
                   <span className="text-[10px] uppercase font-bold text-gray-400">Mới Tiếp Nhận</span>
                   <div className="text-2xl font-black font-mono text-amber-300 mt-1">{newLeadsCount}</div>
-                  <div className="text-[11px] text-amber-400 font-mono mt-0.5">Chờ tư vấn viên liên hệ</div>
+                  <div className="text-[11px] text-amber-400 font-mono mt-0.5">CSKH đang tiếp nhận</div>
                 </div>
 
                 <div className="bg-slate-900/80 p-4 rounded-2xl border border-sky-500/30">
@@ -3336,7 +3776,7 @@ export default function AdminFintrixityDashboard({
               {/* Filters for Lead Status & Source */}
               <div className="flex flex-wrap items-center gap-3 bg-slate-900/60 p-3.5 rounded-2xl border border-white/10">
                 <span className="text-xs font-bold text-gray-400 flex items-center gap-1">
-                  <FilterIcon className="w-3.5 h-3.5 text-purple-400" /> Lọc trạng thái:
+                  <FilterIcon className="w-3.5 h-3.5 text-purple-400" /> Lọc trạng thái báo giá:
                 </span>
                 <select 
                   value={leadStatusFilter}
@@ -3361,7 +3801,7 @@ export default function AdminFintrixityDashboard({
                   <option value="Landing Page">Landing Page</option>
                   <option value="Zalo">Zalo</option>
                   <option value="Facebook Fanpage">Facebook Fanpage</option>
-                  <option value="Học viên giới thiệu">Học viên giới thiệu</option>
+                  <option value="Học viên giới thiệu">Khách hàng giới thiệu</option>
                 </select>
               </div>
 
@@ -3371,9 +3811,9 @@ export default function AdminFintrixityDashboard({
                     <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mx-auto text-xl">
                       💬
                     </div>
-                    <h4 className="text-base font-bold text-white">Chưa có yêu cầu báo giá mới</h4>
+                    <h4 className="text-base font-bold text-white">Chưa có báo giá nào</h4>
                     <p className="text-xs text-gray-400 max-w-md mx-auto">
-                      Danh sách tư vấn hiện đang trống. Yêu cầu mới từ khách hàng sẽ tự động ghi nhận tại đây.
+                      Danh sách báo giá hiện đang trống. Yêu cầu mới từ khách hàng sẽ tự động ghi nhận tại đây để Admin xem xét.
                     </p>
                   </div>
                 ) : (
@@ -3402,12 +3842,15 @@ export default function AdminFintrixityDashboard({
                         <div className="text-sm font-mono font-bold text-emerald-400">
                           Ngân sách: {formatVnd(l.budgetVnd)}
                         </div>
-                        <div className="flex flex-wrap gap-2 justify-end">
+                        <div className="flex flex-col items-end gap-1.5">
+                          <span className="text-[10px] text-gray-400 font-mono">
+                            🎧 Nghiệp vụ CSKH phụ trách tư vấn
+                          </span>
                           <button 
-                            onClick={() => triggerToast(`Đã kết nối cuộc gọi Zalo/SĐT với sinh viên ${l.clientName}`)}
-                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs rounded-xl cursor-pointer"
+                            onClick={() => setSelectedLeadForReview(l)}
+                            className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/30 font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center gap-1.5"
                           >
-                            📞 Gọi Tư Vấn
+                            👁️ Xem Xét Tình Hình Báo Giá
                           </button>
                         </div>
                       </div>
@@ -4491,20 +4934,17 @@ export default function AdminFintrixityDashboard({
                         id="admin-avatar-file-upload"
                         type="file" 
                         accept="image/*"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            if (file.size > 5 * 1024 * 1024) {
-                              alert('Dung lượng ảnh vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.');
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              if (typeof reader.result === 'string') {
-                                setEditingAvatarUrl(reader.result);
+                            try {
+                              const compressed = await compressImageFile(file, 256, 256, 0.75);
+                              if (compressed) {
+                                setEditingAvatarUrl(compressed);
                               }
-                            };
-                            reader.readAsDataURL(file);
+                            } catch (err) {
+                              console.error('Error compressing admin avatar:', err);
+                            }
                           }
                         }}
                         className="hidden"
@@ -4757,6 +5197,252 @@ export default function AdminFintrixityDashboard({
         userName={adminUser.name}
         language={language}
       />
+
+      {/* MODAL 13: 4-ROLE PROJECT CONTRACT MODAL */}
+      {selectedWorkflowContract && (
+        <ProjectContractModal
+          project={selectedWorkflowContract}
+          currentUser={adminUser}
+          onClose={() => setSelectedWorkflowContract(null)}
+          onContractUpdated={(updatedPrj) => {
+            setSelectedWorkflowContract(updatedPrj);
+            setWorkflowProjects(getWorkflowProjects());
+            triggerToast('📜 Đã cập nhật chữ ký số và tiến trình hợp đồng dự án!');
+          }}
+          language={language}
+        />
+      )}
+
+      {/* MODAL: GIÁM SÁT TIẾN TRÌNH & NGHIỆM THU KỸ THUẬT (DÀNH CHO ADMIN) */}
+      {selectedProjectForInspection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border-2 border-sky-500/40 rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl space-y-6 relative overflow-hidden">
+            <div className="flex justify-between items-start border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center text-2xl shadow-lg">
+                  📋
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                      {selectedProjectForInspection.id}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-slate-950 px-2 py-0.5 rounded">
+                      Giám Sát Nghiệp Vụ Kỹ Thuật
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-white mt-1">{selectedProjectForInspection.title}</h3>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedProjectForInspection(null)}
+                className="text-gray-400 hover:text-white text-xl font-mono p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+              {/* Thẻ trạng thái & Tiến trình */}
+              <div className="bg-slate-950/80 p-4 rounded-2xl border border-white/5 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-400">Trạng thái nghiệm thu:</span>
+                  {selectedProjectForInspection.status === 'Completed' ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      ✅ Đã Nghiệm Thu Hoàn Toàn (100%)
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      ⚙️ Đang Triển Khai Kỹ Thuật ({selectedProjectForInspection.progress}%)
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-gray-400">Tiến độ thực hiện:</span>
+                    <span className="text-sky-300 font-bold">{selectedProjectForInspection.progress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-white/5">
+                    <div 
+                      className={`h-2.5 rounded-full transition-all duration-500 ${
+                        selectedProjectForInspection.status === 'Completed' ? 'bg-emerald-400' : 'bg-gradient-to-r from-sky-600 to-sky-400'
+                      }`}
+                      style={{ width: `${selectedProjectForInspection.progress}%` }} 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Thông tin nhân sự kỹ thuật & Hợp đồng */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/5 space-y-1.5">
+                  <div className="text-gray-400">👨‍💻 Đội ngũ Kỹ thuật phụ trách:</div>
+                  <div className="font-bold text-white text-sm">{selectedProjectForInspection.assignedDev}</div>
+                  <div className="text-[11px] text-gray-400 font-mono">Công nghệ: <strong className="text-sky-300">{selectedProjectForInspection.techStack}</strong></div>
+                </div>
+
+                <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/5 space-y-1.5">
+                  <div className="text-gray-400">👤 Khách hàng đặt đồ án:</div>
+                  <div className="font-bold text-white text-sm">{selectedProjectForInspection.clientName}</div>
+                  <div className="text-[11px] text-gray-400 font-mono">Trường / Đơn vị: {selectedProjectForInspection.school}</div>
+                </div>
+
+                <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/5 space-y-1.5">
+                  <div className="text-gray-400">🗓️ Thời hạn bảo vệ:</div>
+                  <div className="font-bold text-amber-300 font-mono text-sm">{selectedProjectForInspection.defenseDate}</div>
+                </div>
+
+                <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/5 space-y-1.5">
+                  <div className="text-gray-400">💰 Giá trị hợp đồng:</div>
+                  <div className="font-bold text-emerald-400 font-mono text-sm">{formatVnd(selectedProjectForInspection.priceVnd)}</div>
+                </div>
+              </div>
+
+              {/* Báo cáo phân đoạn kỹ thuật */}
+              <div className="bg-slate-950/80 p-4 rounded-2xl border border-white/5 space-y-3">
+                <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                  📌 Tiến Trình Giai Đoạn Nghiệp Vụ Kỹ Thuật:
+                </h4>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-white/5">
+                    <span>1. Phân tích tài liệu &amp; kiến trúc cơ sở dữ liệu</span>
+                    <span className="text-emerald-400 font-bold font-mono">Hoàn thành ✓</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-white/5">
+                    <span>2. Lập trình backend API &amp; tích hợp hệ thống</span>
+                    <span className="text-emerald-400 font-bold font-mono">Hoàn thành ✓</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-white/5">
+                    <span>3. Xây dựng giao diện Frontend &amp; trải nghiệm</span>
+                    <span className={selectedProjectForInspection.progress >= 70 ? 'text-emerald-400 font-bold font-mono' : 'text-sky-300 font-bold font-mono'}>
+                      {selectedProjectForInspection.progress >= 70 ? 'Hoàn thành ✓' : 'Đang xử lý ⏳'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-white/5">
+                    <span>4. Đóng gói Source Code, Viết Báo Cáo &amp; Slide thuyết trình</span>
+                    <span className={selectedProjectForInspection.progress === 100 ? 'text-emerald-400 font-bold font-mono' : 'text-gray-500 font-mono'}>
+                      {selectedProjectForInspection.progress === 100 ? 'Hoàn tất nghiệm thu ✓' : 'Theo kế hoạch'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedProjectForInspection(null)}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl cursor-pointer transition-all"
+              >
+                Đóng Hồ Sơ Giám Sát
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: XEM XÉT TÌNH HÌNH BÁO GIÁ (DÀNH CHO ADMIN) */}
+      {selectedLeadForReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border-2 border-purple-500/40 rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl space-y-6 relative overflow-hidden">
+            <div className="flex justify-between items-start border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/40 text-purple-300 flex items-center justify-center text-2xl shadow-lg">
+                  📑
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                      {selectedLeadForReview.id}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-slate-950 px-2 py-0.5 rounded">
+                      Xem Xét Tình Hình Báo Giá
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-white mt-1">Thông Tin Báo Giá Khách Hàng</h3>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedLeadForReview(null)}
+                className="text-gray-400 hover:text-white text-xl font-mono p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="bg-slate-950/80 p-4 rounded-2xl border border-white/5 space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Trạng thái báo giá:</span>
+                  <span className={`px-2.5 py-1 rounded-full font-bold ${
+                    selectedLeadForReview.status === 'Đã chốt hợp đồng'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  }`}>
+                    {selectedLeadForReview.status}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Nguồn tiếp nhận:</span>
+                  <span className="font-mono text-sky-300 font-bold">{selectedLeadForReview.source || 'Landing Page'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Thời điểm gửi yêu cầu:</span>
+                  <span className="font-mono text-gray-300">{selectedLeadForReview.createdAt}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Ngân sách dự kiến:</span>
+                  <span className="font-mono text-emerald-400 font-bold text-sm">{formatVnd(selectedLeadForReview.budgetVnd)}</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-950/60 p-4 rounded-2xl border border-white/5 space-y-2">
+                <div className="font-bold text-gray-300 border-b border-white/5 pb-1">
+                  👤 Thông Tin Khách Hàng:
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Họ và tên:</span>
+                  <span className="font-bold text-white">{selectedLeadForReview.clientName}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Số điện thoại:</span>
+                  <span className="font-mono text-sky-300 font-bold">{selectedLeadForReview.phone}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Trường / Nơi làm việc:</span>
+                  <span className="font-semibold text-gray-200">{selectedLeadForReview.school}</span>
+                </div>
+                <div className="text-gray-400 pt-1">
+                  <span>Đề tài / Nhu cầu báo giá:</span>
+                  <div className="mt-1 p-2.5 bg-slate-900 rounded-xl border border-white/5 text-gray-200 font-medium">
+                    {selectedLeadForReview.topic}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-purple-500/10 border border-purple-500/20 rounded-2xl space-y-1">
+                <div className="font-bold text-purple-300 flex items-center gap-1.5">
+                  <span>🎧</span> Phân Công Nghiệp Vụ:
+                </div>
+                <p className="text-gray-300 text-[11px] leading-relaxed">
+                  Admin giám sát tình hình tiến độ báo giá. Việc liên hệ, gọi điện tư vấn và hỗ trợ khách hàng do đội ngũ chuyên viên Chăm Sóc Khách Hàng (CSKH) thực hiện trực tiếp.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedLeadForReview(null)}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-gray-200 text-xs font-bold rounded-xl cursor-pointer transition-all"
+              >
+                Đóng Báo Cáo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

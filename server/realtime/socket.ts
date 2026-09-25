@@ -6,13 +6,27 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import { storage } from '../../src/db/storage';
 
 let ioInstance: SocketIOServer | null = null;
 
 export function setupSocketIO(httpServer: HttpServer): SocketIOServer {
+  const allowedOriginPatterns = [
+    /^http:\/\/localhost(:\d+)?$/,
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+    /^https:\/\/.*\.run\.app$/,
+    /^https:\/\/.*\.lubpystudio\.vn$/,
+  ];
+
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: '*', // Allows Web client, localhost, native mobile apps
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const isAllowed = allowedOriginPatterns.some(pattern => pattern.test(origin)) ||
+          (process.env.APP_URL && origin === process.env.APP_URL);
+        if (isAllowed) return callback(null, true);
+        return callback(new Error(`Socket.IO CORS blocked: ${origin}`));
+      },
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       credentials: true,
     },
@@ -47,12 +61,83 @@ export function setupSocketIO(httpServer: HttpServer): SocketIOServer {
       }
     }
 
-    // Join custom room (e.g., 'project:PRJ-2401', 'ticket:TCK-701', 'chat:session-123')
-    socket.on('join_room', (roomName: string) => {
-      if (typeof roomName === 'string' && roomName.trim().length > 0) {
-        socket.join(roomName);
-        socket.emit('room_joined', { room: roomName, status: 'success' });
+    // Join custom room with strict authorization checks
+    socket.on('join_room', async (roomName: string) => {
+      if (typeof roomName !== 'string' || roomName.trim().length === 0) return;
+      const cleanRoom = roomName.trim();
+      const currentUser = (socket as any).user;
+
+      // 1. Department rooms: e.g. dept:ADMIN, dept:ACCOUNTING, dept:DEV, dept:CS, dept:HR
+      if (cleanRoom.startsWith('dept:')) {
+        const targetDept = cleanRoom.split(':')[1]?.toUpperCase();
+        const userRole = (currentUser?.role || '').toUpperCase();
+        if (!currentUser || (userRole !== targetDept && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN')) {
+          socket.emit('room_error', { room: cleanRoom, message: 'Bạn không có quyền truy cập kênh phòng ban này.' });
+          return;
+        }
       }
+
+      // 2. Private User rooms: e.g. user:usr_123
+      if (cleanRoom.startsWith('user:')) {
+        const targetUid = cleanRoom.split(':')[1];
+        const userRole = (currentUser?.role || '').toUpperCase();
+        if (!currentUser || (currentUser.uid !== targetUid && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN')) {
+          socket.emit('room_error', { room: cleanRoom, message: 'Bạn không có quyền truy cập kênh dữ liệu cá nhân này.' });
+          return;
+        }
+      }
+
+      // 3. Project rooms: e.g. project:PRJ-xxx
+      if (cleanRoom.startsWith('project:')) {
+        const projectId = cleanRoom.split(':')[1];
+        if (!currentUser) {
+          socket.emit('room_error', { room: cleanRoom, message: 'Vui lòng đăng nhập để tham gia kênh dự án.' });
+          return;
+        }
+        const userRole = (currentUser.role || '').toUpperCase();
+        if (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
+          try {
+            const project = await storage.getProjectById(projectId);
+            if (project) {
+              const isOwner = (project.clientId && project.clientId === currentUser.uid) ||
+                              (project.clientEmail && project.clientEmail.toLowerCase() === currentUser.email?.toLowerCase());
+              const isDev = (project.assignedDevId && project.assignedDevId === currentUser.uid) ||
+                            (project.assignedDevName && project.assignedDevName.toLowerCase() === currentUser.name?.toLowerCase());
+              const isCs = (project.assignedCsId && project.assignedCsId === currentUser.uid) ||
+                           (project.assignedCsName && project.assignedCsName.toLowerCase() === currentUser.name?.toLowerCase());
+              if (!isOwner && !isDev && !isCs && !currentUser.isDepartmentHead) {
+                socket.emit('room_error', { room: cleanRoom, message: 'Bạn không có quyền truy cập kênh dự án này.' });
+                return;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 4. Ticket rooms: e.g. ticket:TCK-xxx
+      if (cleanRoom.startsWith('ticket:')) {
+        if (!currentUser) {
+          socket.emit('room_error', { room: cleanRoom, message: 'Vui lòng đăng nhập để truy cập ticket.' });
+          return;
+        }
+        const userRole = (currentUser.role || '').toUpperCase();
+        if (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN' && userRole !== 'CS') {
+          try {
+            const ticket = await storage.getTicketById(cleanRoom.split(':')[1]);
+            if (ticket) {
+              const isOwner = (ticket.clientId && ticket.clientId === currentUser.uid) ||
+                              (ticket.clientEmail && ticket.clientEmail.toLowerCase() === currentUser.email?.toLowerCase());
+              if (!isOwner) {
+                socket.emit('room_error', { room: cleanRoom, message: 'Bạn không có quyền xem ticket này.' });
+                return;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      socket.join(cleanRoom);
+      socket.emit('room_joined', { room: cleanRoom, status: 'success' });
     });
 
     // Leave custom room

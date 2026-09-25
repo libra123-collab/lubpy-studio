@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isValidSupportMessage(data) {
+      return data.keys().hasAll(['senderName', 'message', 'createdAt']) &&
+             data.senderName is string &&
+             data.senderName.size() >= 1 &&
+             data.senderName.size() <= 100 &&
+             data.message is string &&
+             data.message.size() >= 1 &&
+             data.message.size() <= 3000 &&
+             data.createdAt is string;
+    }
+
+    match /support_messages/{messageId} {
+      allow read: if true;
+      allow create: if isValidSupportMessage(request.resource.data);
+      allow update, delete: if request.auth != null;
+    }
+  }
+}

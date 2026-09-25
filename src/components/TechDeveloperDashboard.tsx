@@ -12,6 +12,7 @@ import { getVisibleNotificationsForUser } from '../utils/notificationStore';
 import NotificationMailboxModal from './NotificationMailboxModal';
 import WorkspaceNotificationBell from './WorkspaceNotificationBell';
 import UserProfileModal from './UserProfileModal';
+import TechWorkflowTab from './staff/TechWorkflowTab';
 
 interface TechDeveloperDashboardProps {
   user: User;
@@ -159,7 +160,7 @@ export default function TechDeveloperDashboard({
   onUpdateUser
 }: TechDeveloperDashboardProps) {
   const [currentUser, setCurrentUser] = useState<User>(user);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'bugs' | 'performance'>('tasks');
+  const [activeTab, setActiveTab] = useState<'workflow' | 'tasks' | 'bugs' | 'performance'>('workflow');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -507,6 +508,21 @@ export default function TechDeveloperDashboard({
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3 px-2">CHỨC NĂNG CHÍNH</p>
                 <div className="space-y-1.5">
                   <button 
+                    onClick={() => setActiveTab('workflow')}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      activeTab === 'workflow' 
+                        ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white shadow-lg shadow-sky-950/40 border border-sky-400/30' 
+                        : 'hover:bg-[#181a20] text-gray-300 hover:text-white'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Code className="w-4 h-4 text-sky-400" />
+                      <span>Dự Án CSKH &amp; Giá Kế Toán</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 bg-sky-500/20 text-sky-300 rounded-full font-extrabold">Y/c 2 &amp; 3</span>
+                  </button>
+
+                  <button 
                     onClick={() => setActiveTab('tasks')}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                       activeTab === 'tasks' 
@@ -746,7 +762,18 @@ export default function TechDeveloperDashboard({
 
           {/* MAIN TABS NAVIGATION */}
           <div className="flex items-center justify-between border-b border-[#1e2029] pb-4 mb-6">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setActiveTab('workflow')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  activeTab === 'workflow'
+                    ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-lg shadow-sky-950/40 border border-sky-400/40'
+                    : 'bg-[#121318] text-gray-400 hover:text-white border border-[#1e2029]'
+                }`}
+              >
+                🚀 Yêu Cầu CSKH Chuyển Giao &amp; Thống Nhất Giá Kế Toán (Y/c 2, 3)
+              </button>
+
               <button
                 onClick={() => setActiveTab('tasks')}
                 className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -789,6 +816,15 @@ export default function TechDeveloperDashboard({
               <span>Xuất CSV (UTF-8)</span>
             </button>
           </div>
+
+          {/* TAB: WORKFLOW FROM CSKH & PRICING WITH ACCOUNTING */}
+          {activeTab === 'workflow' && (
+            <TechWorkflowTab
+              currentUser={currentUser}
+              onTriggerToast={triggerToast}
+              language={language}
+            />
+          )}
 
           {/* TAB 1 & 2: TASK & BUG TABLES */}
           {(activeTab === 'tasks' || activeTab === 'bugs') && (

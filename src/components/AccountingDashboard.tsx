@@ -3,7 +3,8 @@ import {
   DollarSign, FileText, TrendingUp, Clock, CreditCard, ArrowUpRight, ArrowDownRight, 
   Search, Plus, Filter, Calendar, CheckCircle, AlertCircle, LogOut, ChevronRight,
   Shield, Building2, User as UserIcon, Send, Download, ExternalLink, Mail,
-  Check, X, Lock, RefreshCw, PieChart, Users, Layers, Wallet, UserX, Settings, Server
+  Check, X, Lock, RefreshCw, PieChart, Users, Layers, Wallet, UserX, Settings, Server,
+  FileSpreadsheet
 } from 'lucide-react';
 import { User } from '../types';
 import { getStoredOrganization } from '../utils/organizationStore';
@@ -11,6 +12,16 @@ import { getVisibleNotificationsForUser } from '../utils/notificationStore';
 import NotificationMailboxModal from './NotificationMailboxModal';
 import UserProfileModal from './UserProfileModal';
 import { getHRAccountingStaff, AccountantStaff } from '../utils/staffSyncStore';
+import AccountingWorkflowTab from './staff/AccountingWorkflowTab';
+import { getWorkflowProjects } from '../utils/projectWorkflowStore';
+import {
+  exportAccountingStaffToCSV,
+  exportAccountingStaffToExcelXML,
+  exportCashflowReportToCSV,
+  exportCashflowReportToExcelXML,
+  exportInvoicesToCSV,
+  exportDevPayoutsToCSV
+} from '../utils/accountingExport';
 
 interface AccountingDashboardProps {
   user: User;
@@ -61,7 +72,7 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
     setCurrentUser(user);
   }, [user]);
 
-  const [activeTab, setActiveTab] = useState<'Invoices' | 'Payouts' | 'Reports' | 'Staff'>('Invoices');
+  const [activeTab, setActiveTab] = useState<'Workflow' | 'Invoices' | 'Payouts' | 'Reports' | 'Staff'>('Workflow');
   const [accountingStaffList, setAccountingStaffList] = useState<AccountantStaff[]>(() => getHRAccountingStaff());
 
   useEffect(() => {
@@ -84,17 +95,11 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
     return new Intl.NumberFormat('vi-VN').format(amount) + ' VNĐ';
   };
 
-  // Default Invoices (Quản Lý Thu Tiền Đồ Án) - Khởi tạo mảng rỗng do dự án mới khởi tạo
-  const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
-
-  // Default Dev Payouts - Khởi tạo mảng rỗng do dự án mới khởi tạo
-  const [devPayouts, setDevPayouts] = useState<DevPayout[]>([]);
-
-  // Report Time Range Filter
-  const [reportTimeRange, setReportTimeRange] = useState<'this_month' | 'last_month' | 'this_quarter' | 'this_year'>('this_month');
-
   // Helper to sync Dev Payouts from Invoices automatically (Tab 1 -> Tab 2 flow)
   const syncDevPayoutsFromInvoices = (invList: ProjectInvoice[], currentPayouts: DevPayout[]): DevPayout[] => {
+    if (!Array.isArray(invList)) return [];
+    const safeCurrentPayouts = Array.isArray(currentPayouts) ? currentPayouts : [];
+
     const payoutsMap: Record<string, {
       devName: string;
       devAvatar: string;
@@ -106,27 +111,30 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
     }> = {};
 
     invList.forEach((inv) => {
-      const rawDev = inv.assignedDev ? inv.assignedDev.trim() : '';
+      if (!inv || typeof inv !== 'object') return;
+      const rawDev = typeof inv.assignedDev === 'string' ? inv.assignedDev.trim() : '';
       const devName = (rawDev && !rawDev.includes('Chưa bổ nhiệm'))
         ? rawDev
         : 'Kỹ Sư Chưa Bổ Nhiệm';
 
-      const payoutPercentage = inv.devPayoutPercentage || 35;
-      const payoutAmount = Math.round(inv.totalCost * (payoutPercentage / 100));
+      const payoutPercentage = Number(inv.devPayoutPercentage) || 35;
+      const totalCost = Number(inv.totalCost) || 0;
+      const payoutAmount = Math.round(totalCost * (payoutPercentage / 100));
+      const invId = String(inv.id || 'HD-UNKNOWN');
 
       if (!payoutsMap[devName]) {
         payoutsMap[devName] = {
           devName,
           devAvatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(devName)}`,
-          assignedProjects: [inv.id],
+          assignedProjects: [invId],
           totalProjectsCount: 1,
           payoutRate: `${payoutPercentage}% Hợp đồng`,
           earnedAmount: payoutAmount,
           bankInfo: 'MB Bank - 0988888888 (Tự động)'
         };
       } else {
-        if (!payoutsMap[devName].assignedProjects.includes(inv.id)) {
-          payoutsMap[devName].assignedProjects.push(inv.id);
+        if (!payoutsMap[devName].assignedProjects.includes(invId)) {
+          payoutsMap[devName].assignedProjects.push(invId);
           payoutsMap[devName].totalProjectsCount += 1;
         }
         payoutsMap[devName].earnedAmount += payoutAmount;
@@ -134,7 +142,7 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
     });
 
     return Object.keys(payoutsMap).map((devName, index) => {
-      const existing = currentPayouts.find(p => p.devName === devName);
+      const existing = safeCurrentPayouts.find(p => p && p.devName === devName);
       const data = payoutsMap[devName];
       return {
         id: existing ? existing.id : `PAY-DEV-0${index + 1}`,
@@ -151,11 +159,60 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
     });
   };
 
+  // Helper to load or initialize invoices from storage and workflow
+  const loadInvoicesFromStorageAndWorkflow = (): ProjectInvoice[] => {
+    try {
+      const rawStored = localStorage.getItem('lubpy_accounting_invoices');
+      if (rawStored) {
+        const parsed = JSON.parse(rawStored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+
+    // Synchronize from workflow projects
+    try {
+      const wfProjects = getWorkflowProjects();
+      if (Array.isArray(wfProjects) && wfProjects.length > 0) {
+        return wfProjects.map((p, idx) => ({
+          id: p.invoiceId || `HD-2026-${String(idx + 81).padStart(3, '0')}`,
+          projectName: p.projectName || 'Đồ án Công nghệ thông tin',
+          studentName: p.clientName || 'Học Viên Khách Hàng',
+          studentPhone: p.clientPhone || '0988000111',
+          studentEmail: p.clientEmail || '',
+          paymentMethod: 'Chuyển khoản Ngân hàng (Vietcombank/MB)',
+          paymentDate: p.invoiceDate || (p.updatedAt ? String(p.updatedAt).slice(0, 10) : '2026-09-22'),
+          paymentNotes: 'Tiếp nhận thỏa thuận từ Đội Ngũ Kỹ Thuật & CSKH',
+          totalCost: Number(p.totalAmountVnd) || 15000000,
+          depositAmount: Number(p.depositAmountVnd) || 7500000,
+          remainingAmount: p.remainingAmountVnd !== undefined ? Number(p.remainingAmountVnd) : 7500000,
+          status: p.paymentStatus === 'paid_100' ? 'Đã quyết toán' : (Number(p.remainingAmountVnd) === 0 ? 'Đã nghiệm thu' : 'Đã cọc'),
+          createdDate: p.createdAt ? String(p.createdAt).slice(0, 10) : '2026-09-15',
+          assignedDev: typeof p.assignedDev === 'string' && p.assignedDev ? p.assignedDev : 'Vũ Hải Long (Senior Dev)',
+          devPayoutPercentage: 35
+        }));
+      }
+    } catch (e) {}
+
+    return [];
+  };
+
+  // Invoices (Quản Lý Thu Tiền Đồ Án) - Khởi tạo từ dự án đã ký thỏa thuận
+  const [invoices, setInvoices] = useState<ProjectInvoice[]>(() => loadInvoicesFromStorageAndWorkflow());
+
+  // Default Dev Payouts - Đồng bộ tự động từ danh sách Invoices
+  const [devPayouts, setDevPayouts] = useState<DevPayout[]>(() => {
+    const initialInvoices = loadInvoicesFromStorageAndWorkflow();
+    return syncDevPayoutsFromInvoices(initialInvoices, []);
+  });
+
+  // Report Time Range Filter
+  const [reportTimeRange, setReportTimeRange] = useState<'this_month' | 'last_month' | 'this_quarter' | 'this_year'>('this_month');
+
   // Calculations for Top Stats
-  const totalRevenue = invoices.reduce((acc, inv) => acc + inv.totalCost, 0);
-  const totalDepositCollected = invoices.reduce((acc, inv) => acc + inv.depositAmount, 0);
-  const totalPendingBalance = invoices.reduce((acc, inv) => acc + inv.remainingAmount, 0);
-  const totalDevPayouts = devPayouts.reduce((acc, dev) => acc + dev.earnedAmount, 0);
+  const totalRevenue = (Array.isArray(invoices) ? invoices : []).reduce((acc, inv) => acc + (Number(inv.totalCost) || 0), 0);
+  const totalDepositCollected = (Array.isArray(invoices) ? invoices : []).reduce((acc, inv) => acc + (Number(inv.depositAmount) || 0), 0);
+  const totalPendingBalance = (Array.isArray(invoices) ? invoices : []).reduce((acc, inv) => acc + (Number(inv.remainingAmount) || 0), 0);
+  const totalDevPayouts = (Array.isArray(devPayouts) ? devPayouts : []).reduce((acc, dev) => acc + (Number(dev.earnedAmount) || 0), 0);
 
   // States for modals
   const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
@@ -174,7 +231,7 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
 
   const [payoutNotification, setPayoutNotification] = useState<string | null>(null);
   const [showNotifModal, setShowNotifModal] = useState(false);
-  const [orgData] = useState(() => getStoredOrganization());
+  const [orgData] = useState(() => getStoredOrganization() || { heads: {}, members: [] });
 
   // 2FA Verification modal for Dev Payout
   const [show2FAForPayout, setShow2FAForPayout] = useState<DevPayout | null>(null);
@@ -236,7 +293,8 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
   };
 
   // Notifications Calculation
-  const { visibleNotifs } = getVisibleNotificationsForUser(currentUser, orgData.heads);
+  const orgHeads = (orgData && orgData.heads) ? orgData.heads : {};
+  const { visibleNotifs } = getVisibleNotificationsForUser(currentUser, orgHeads);
   const userEmail = (currentUser?.email || '').toLowerCase();
   const unreadNotifCount = visibleNotifs.filter(n => !n.readBy || !n.readBy.some(e => (e || '').toLowerCase() === userEmail)).length;
 
@@ -266,51 +324,47 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
   };
 
   const handleExportCSVReport = () => {
-    let csvHeader = "";
-    let csvRows = "";
-    let filename = "";
-
     if (activeTab === 'Invoices') {
-      filename = `lubpy_invoices_${new Date().toISOString().slice(0, 10)}.csv`;
-      csvHeader = "Ma Do An,Ten Do An,Ten Hoc Vien,So Dien Thoai,Tong Chi Phi (VND),Tien Da Coc (VND),Con No (VND),Trang Thai,Ngay Tao,Ky Su Phu Trach\n";
-      csvRows = invoices.map(i => 
-        `"${i.id}","${i.projectName}","${i.studentName}","${i.studentPhone}",${i.totalCost},${i.depositAmount},${i.remainingAmount},"${i.status}","${i.createdDate}","${i.assignedDev}"`
-      ).join("\n");
+      exportInvoicesToCSV(invoices);
+      setPayoutNotification('Đã xuất báo cáo Hóa Đơn (Tự động căn rộng cột AutoFit) thành công!');
     } else if (activeTab === 'Payouts') {
-      filename = `lubpy_dev_payouts_${new Date().toISOString().slice(0, 10)}.csv`;
-      csvHeader = "Ma Ky Su,Ten Ky Su,Do An Dam Nhan,Ty Le Thu Lao,Tong Tien Thu Lao (VND),Ngan Hang,Trang Thai\n";
-      csvRows = devPayouts.map(p => 
-        `"${p.id}","${p.devName}","${p.assignedProjects.join('; ')}","${p.payoutRate}",${p.earnedAmount},"${p.bankInfo || ''}","${p.status}"`
-      ).join("\n");
+      exportDevPayoutsToCSV(devPayouts);
+      setPayoutNotification('Đã xuất báo cáo Thù Lao Devs (Tự động căn rộng cột AutoFit) thành công!');
     } else if (activeTab === 'Reports') {
-      filename = `lubpy_cashflow_report_${new Date().toISOString().slice(0, 10)}.csv`;
-      csvHeader = "Chi Tieu,Gia Tri (VND),Ghi Chu\n";
-      csvRows = [
-        `"Tong Doanh Thu Hop Dong",${totalRevenue},"Tong gia tri tat ca hop dong do an"`,
-        `"Tien Coc Da Thu (50%)",${totalDepositCollected},"Thuc nhan tai khoan trung gian"`,
-        `"Thanh Toan Con Lai (Cho Nghiem Thu)",${totalPendingBalance},"Thu khi ban giao source code"`,
-        `"Thu Lao Tra Devs & Chi Phi Van Hanh",${totalDevPayouts},"Quy chi tra cho doi ngu Lap trinh"`,
-        `"Doanh Thu Rong",${totalRevenue - totalDevPayouts},"Loi nhuan gop sau tra Dev"`,
-        `"Tong So Do An",${invoices.length},"So luong do an da nhan"`
-      ].join("\n");
+      exportCashflowReportToCSV({
+        totalRevenue,
+        totalDepositCollected,
+        totalPendingBalance,
+        totalDevPayouts,
+        netRevenue: totalRevenue - totalDevPayouts,
+        totalProjectsCount: invoices.length,
+        timeRangeLabel: reportTimeRange === 'this_month' ? 'Tháng này' : reportTimeRange === 'last_month' ? 'Tháng trước' : 'Năm 2026'
+      });
+      setPayoutNotification('Đã xuất Báo Cáo Dòng Tiền (Tự động căn rộng cột AutoFit Column Width) thành công!');
     } else {
-      filename = `lubpy_accounting_staff_${new Date().toISOString().slice(0, 10)}.csv`;
-      csvHeader = "Ma NV,Ten Nhan Vien,Chuc Danh,Cap Bac,Nhiem Vu,Hoa Don Da Kiem Soat,Tong Tien Da Kiem Soat (VND),Trang Thai\n";
-      csvRows = accountingStaffList.map(s => 
-        `"${s.id}","${s.name}","${s.title}","${s.level}","${s.assignedScope}",${s.auditedInvoicesCount},${s.auditedAmountVND},"${s.status}"`
-      ).join("\n");
+      // Default / Staff / Workflow tab: export Accounting Staff & Audit report with Vietnamese accents & balanced column width
+      exportAccountingStaffToCSV(accountingStaffList, currentUser);
+      setPayoutNotification('Đã xuất Báo Cáo Nhân Sự (Tự động căn rộng cột AutoFit Column Width) thành công!');
     }
+    setTimeout(() => setPayoutNotification(null), 3500);
+  };
 
-    const blob = new Blob(["\uFEFF" + csvHeader + csvRows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setPayoutNotification(`Đã xuất file báo cáo CSV (${activeTab === 'Invoices' ? 'Hóa đơn' : activeTab === 'Payouts' ? 'Lương Dev' : activeTab === 'Reports' ? 'Dòng tiền' : 'Nhân sự'}) thành công!`);
+  const handleExportExcelReport = () => {
+    if (activeTab === 'Reports') {
+      exportCashflowReportToExcelXML({
+        totalRevenue,
+        totalDepositCollected,
+        totalPendingBalance,
+        totalDevPayouts,
+        netRevenue: totalRevenue - totalDevPayouts,
+        totalProjectsCount: invoices.length,
+        timeRangeLabel: reportTimeRange === 'this_month' ? 'Tháng này' : reportTimeRange === 'last_month' ? 'Tháng trước' : 'Năm 2026'
+      });
+      setPayoutNotification('Đã xuất file Báo Cáo Dòng Tiền (Excel Căn Chỉnh AutoFit) thành công!');
+    } else {
+      exportAccountingStaffToExcelXML(accountingStaffList, currentUser);
+      setPayoutNotification('Đã xuất file Báo Cáo Nhân Sự Kế Toán (Excel Căn Chỉnh AutoFit) thành công!');
+    }
     setTimeout(() => setPayoutNotification(null), 3000);
   };
 
@@ -435,6 +489,7 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
               </div>
               <div className="space-y-2">
                 {[
+                  { id: 'Workflow', label: 'Hóa Đơn Dự Án (Gửi Lại CSKH)', icon: FileText, badge: 'Y/c 4' },
                   { id: 'Invoices', label: 'Thu Tiền Đồ Án (Invoices)', icon: CreditCard, badge: invoices.length },
                   { id: 'Payouts', label: 'Quyết Toán Lương Dev', icon: Wallet, badge: devPayouts.filter(p => p.status === 'Chờ duyệt').length > 0 ? `${devPayouts.filter(p => p.status === 'Chờ duyệt').length} Chờ` : `${devPayouts.length}` },
                   { id: 'Reports', label: 'Báo Cáo Dòng Tiền', icon: PieChart, badge: 'Chi tiết' },
@@ -484,13 +539,24 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
                   <span className="truncate">+ Tạo Yêu Cầu / Hóa Đơn Mới</span>
                 </button>
 
-                {/* Quick Action 2: Xuất Báo Cáo (CSV) */}
+                {/* Quick Action 2: Xuất Báo Cáo (CSV / AutoFit Cột) */}
                 <button
                   onClick={handleExportCSVReport}
-                  className="w-full px-3.5 py-2.5 bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2.5"
+                  className="w-full px-3.5 py-2.5 bg-slate-800/80 hover:bg-slate-800 text-cyan-300 hover:text-white border border-cyan-500/30 hover:border-cyan-400 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2.5 shadow-sm"
+                  title="Xuất file báo cáo với tính năng AutoFit Column Width tự động giãn rộng cột rõ ràng"
                 >
                   <Download className="w-4 h-4 text-cyan-400 shrink-0" />
-                  <span className="truncate">Xuất Báo Cáo (CSV)</span>
+                  <span className="truncate">Xuất Báo Cáo (CSV / AutoFit Cột)</span>
+                </button>
+
+                {/* Quick Action 3: Xuất File Excel (AutoFit) */}
+                <button
+                  onClick={handleExportExcelReport}
+                  className="w-full px-3.5 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2.5"
+                  title="Xuất bảng tính Excel với kích thước cột tự động giãn AutoFit và phân bổ chuẩn"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="truncate">Xuất File Excel (AutoFit)</span>
                 </button>
               </div>
             </div>
@@ -574,6 +640,18 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
         </div>
 
       </div>
+
+      {/* TAB: WORKFLOW FOR CS INVOICES & TECH PRICING */}
+      {activeTab === 'Workflow' && (
+        <AccountingWorkflowTab
+          currentUser={currentUser}
+          onTriggerToast={(msg) => {
+            setPayoutNotification(msg);
+            setTimeout(() => setPayoutNotification(null), 3500);
+          }}
+          language={language}
+        />
+      )}
 
       {/* TAB 1: QUẢN LÝ THU TIỀN ĐỒ ÁN */}
       {activeTab === 'Invoices' && (
@@ -963,13 +1041,22 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
                 </div>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end">
+              <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-end gap-3 flex-wrap">
+                <button
+                  onClick={handleExportExcelReport}
+                  className="flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-emerald-500/40 shadow-sm"
+                  title="Xuất bảng tính Excel với kích thước cột tự động giãn AutoFit và định dạng chuẩn"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                  <span>📊 Xuất Excel Chi Tiết (AutoFit Cột)</span>
+                </button>
                 <button
                   onClick={handleExportCSVReport}
-                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-700"
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-700 shadow-sm"
+                  title="Xuất file CSV tiếng Việt có dấu với độ rộng cột căn chuẩn AutoFit"
                 >
                   <Download className="w-4 h-4" />
-                  <span>📥 Xuất Báo Cáo CSV Chi Tiết</span>
+                  <span>📥 Xuất Báo Cáo CSV Chi Tiết (AutoFit)</span>
                 </button>
               </div>
             </div>

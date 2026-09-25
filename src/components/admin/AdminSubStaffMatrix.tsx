@@ -153,13 +153,13 @@ export default function AdminSubStaffMatrix({
     if (!editingHead) return;
 
     const { deptKey, head } = editingHead;
+    const customPass = editForm.password.trim();
     const finalDob = editForm.dob.trim();
     const dobDigits = dobTo8Digits(finalDob);
+    const defaultDeptPass = deptKey === 'tech' ? 'tech2026' : deptKey === 'cs' ? 'cs2026' : deptKey === 'hr' ? 'hr2026' : deptKey === 'accounting' ? 'acc2026' : '123456';
 
-    // RÀNG BUỘC ĐIỀU KIỆN TUYỆT ĐỐI THEO YÊU CẦU CỦA ADMIN:
-    // Ngày tháng năm sinh admin nhập bao nhiêu, thì mật khẩu sẽ dùng ngày tháng năm sinh đó là mật khẩu (8 số).
-    // Ví dụ: nhập 15/11/1990 thì mật khẩu là 15111990. Nếu có cập nhật hay thay đổi ngày tháng năm sinh thì mật khẩu sẽ đổi theo đúng với ngày tháng năm sinh nếu có cập nhật thay đổi.
-    const finalPassword = dobDigits || editForm.password.trim() || head.password || '123456';
+    // Ưu tiên: Mật khẩu nhập riêng -> 8 số ngày sinh -> Mật khẩu cũ -> Mật khẩu mặc định ngành
+    const finalPassword = customPass || dobDigits || head.password || defaultDeptPass;
 
     const finalEmail = editForm.email.trim() || normalizeNameToEmail(editForm.name.trim()) || head.email;
 

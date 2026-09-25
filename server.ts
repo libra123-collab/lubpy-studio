@@ -32,12 +32,26 @@ async function startServer() {
   // Initialize Socket.IO Real-time Synchronization Engine
   setupSocketIO(httpServer);
 
-  // Global CORS Configuration (Supports Web, localhost dev, and Mobile Native App origins)
+  // Global CORS Configuration (Restricted to trusted origins, Cloud Run, and Native Mobile clients)
+  const allowedOriginPatterns = [
+    /^http:\/\/localhost(:\d+)?$/,
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+    /^https:\/\/.*\.run\.app$/,
+    /^https:\/\/.*\.lubpystudio\.vn$/,
+  ];
+
   app.use(cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (e.g. Flutter/React Native mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-      return callback(null, true);
+      
+      const isAllowed = allowedOriginPatterns.some(pattern => pattern.test(origin)) ||
+        (process.env.APP_URL && origin === process.env.APP_URL);
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS error: Origin ${origin} not allowed.`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

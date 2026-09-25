@@ -16,6 +16,7 @@ import ProjectModal from './components/ProjectModal';
 import AuthModal, { AuthViewMode } from './components/AuthModal';
 import WorkspaceDashboard from './components/WorkspaceDashboard';
 import FloatingLanguageSelector from './components/FloatingLanguageSelector';
+import SupportChatFloatingButton from './components/SupportChatFloatingButton';
 import { User } from './types';
 import { getUserSession, saveUserSession, clearUserSession } from './utils/session';
 
@@ -187,6 +188,9 @@ export default function App() {
         initialMode={authInitialMode}
         initialView={authInitialView}
       />
+
+      {/* Floating 24/7 Support Chat Button connecting to Firestore */}
+      <SupportChatFloatingButton user={user} language={language} />
     </div>
   );
 }

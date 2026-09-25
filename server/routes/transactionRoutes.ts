@@ -157,13 +157,22 @@ router.put('/:id/confirm', requireAuth, requireRoles('ACCOUNTING', 'ADMIN', 'SUP
       );
     }
 
+    // IDEMPOTENCY CHECK: If already confirmed/completed, return existing state without duplicate deposit calculation
+    if (tx.status && tx.status.toLowerCase() === 'completed') {
+      const formatted = formatTransactionResponse(tx);
+      return res.json(
+        successResponse(formatted, 'Giao dịch này đã được xác nhận hoàn tất trước đó (Idempotent).')
+      );
+    }
+
     const updated = await storage.confirmTransaction(txId, user.name);
 
     if (tx.projectId) {
       const prj = await storage.getProjectById(tx.projectId);
       if (prj) {
         const currentDeposit = Number(prj.depositAmount) || 0;
-        const newDeposit = currentDeposit + Number(tx.amountVnd);
+        const txAmount = Number(tx.amountVnd) || 0;
+        const newDeposit = currentDeposit + txAmount;
         const newRemaining = Math.max(0, (Number(prj.priceVnd) || 0) - newDeposit);
         const newStatus = newRemaining === 0 ? 'PAID_100' : 'DEPOSIT_50';
 

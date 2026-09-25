@@ -656,3 +656,49 @@ body {
 #btn-start-project:hover {
   box-shadow: 0 0 25px rgba(56, 189, 248, 0.7), 0 10px 30px rgba(0, 130, 195, 0.35) !important;
 }
+
+/* Lubpy AI Robot Mascot Animations */
+@keyframes lubpy-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(0.8deg);
+  }
+}
+
+@keyframes lubpy-blink {
+  0%, 46%, 50%, 100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  48% {
+    transform: scaleY(0.12);
+    opacity: 0.3;
+  }
+}
+
+@keyframes lubpy-glow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+.lubpy-mascot-float {
+  animation: lubpy-float 3.2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.lubpy-mascot-blink {
+  animation: lubpy-blink 4.2s infinite;
+  transform-origin: center center;
+}
+
+.lubpy-mascot-glow {
+  animation: lubpy-glow 2.4s ease-in-out infinite;
+}

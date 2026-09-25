@@ -125,7 +125,7 @@ export function syncNotificationSenderWithOrgHeads(
       }
 
       if (head && head.name) {
-        let updatedContent = n.content;
+        let updatedContent = typeof n.content === 'string' ? n.content : '';
         if (n.senderName && n.senderName !== head.name && updatedContent.includes(n.senderName)) {
           updatedContent = updatedContent.replaceAll(n.senderName, head.name);
         }

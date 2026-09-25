@@ -42,11 +42,6 @@ export default function AdminCustomerReviewsTab({ onTriggerToast }: AdminCustome
 
   // Modal State for Viewing / Admin Supervision
   const [inspectingReview, setInspectingReview] = useState<CustomerReview | null>(null);
-  const [replyingReview, setReplyingReview] = useState<CustomerReview | null>(null);
-  const [replyText, setReplyText] = useState('');
-  const [replyAuthorRole, setReplyAuthorRole] = useState('Chuyên Viên CSKH LUBPY');
-  const [replyAuthorName, setReplyAuthorName] = useState('Chu Phiêu Dật');
-  const [selectedCaseNum, setSelectedCaseNum] = useState<number>(3);
 
   // Auto reload when reviews change
   useEffect(() => {
@@ -114,67 +109,12 @@ export default function AdminCustomerReviewsTab({ onTriggerToast }: AdminCustome
     return matchesSearch && matchesDept && matchesStar && matchesReply;
   });
 
-  // Open Reply / Supervise Modal with auto-selected standard template
-  const handleOpenReplyModal = (rev: CustomerReview) => {
-    setReplyingReview(rev);
-    
-    // Auto-detect template case
-    let defaultCase = 3;
-    if (rev.ratingOverall < 3.0) {
-      defaultCase = 1;
-    } else if (rev.ratingOverall < 4.0) {
-      defaultCase = 2;
-    } else {
-      defaultCase = 3;
-    }
-    
-    setSelectedCaseNum(defaultCase);
-    setReplyText(rev.adminReply ? rev.adminReply.content : getStandardResponseByRating(rev.ratingOverall));
-    if (rev.adminReply?.author) {
-      setReplyAuthorName(rev.adminReply.author);
-    }
-    if (rev.adminReply?.authorRole) {
-      setReplyAuthorRole(rev.adminReply.authorRole);
-    }
-  };
-
-  // Apply a specific template
-  const handleApplyTemplate = (caseNum: number) => {
-    setSelectedCaseNum(caseNum);
-    if (caseNum === 1) {
-      setReplyText(STANDARD_REVIEW_TEMPLATES.CASE_1_UNSATISFIED.content);
-    } else if (caseNum === 2) {
-      setReplyText(STANDARD_REVIEW_TEMPLATES.CASE_2_AVERAGE.content);
-    } else {
-      setReplyText(STANDARD_REVIEW_TEMPLATES.CASE_3_SATISFIED.content);
-    }
-  };
-
-  // Handle Admin / CS Reply Submit
-  const handleSendReply = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replyingReview || !replyText.trim()) return;
-
-    const updated = replyToCustomerReview(
-      replyingReview.id, 
-      replyText.trim(), 
-      replyAuthorName.trim() || 'Chuyên Viên CSKH LUBPY',
-      replyAuthorRole.trim() || 'Ban Chăm Sóc Khách Hàng',
-      undefined,
-      selectedCaseNum
-    );
-    setReviews(updated);
-    if (onTriggerToast) onTriggerToast(`💬 Đã lưu câu trả lời cho đánh giá của khách hàng ${replyingReview.clientName}!`);
-    setReplyingReview(null);
-    setReplyText('');
-  };
-
   // Handle Delete Review
   const handleDeleteReview = (revId: string, clientName: string) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa đánh giá của học viên "${clientName}" không?`)) {
+    if (window.confirm(`Bạn có chắc chắn muốn xóa đánh giá của khách hàng "${clientName}" không?`)) {
       const updated = deleteCustomerReview(revId);
       setReviews(updated);
-      if (onTriggerToast) onTriggerToast(`🗑️ Đã xóa đánh giá của học viên ${clientName}`);
+      if (onTriggerToast) onTriggerToast(`🗑️ Đã xóa nhận xét của khách hàng ${clientName}`);
     }
   };
 
@@ -188,10 +128,10 @@ export default function AdminCustomerReviewsTab({ onTriggerToast }: AdminCustome
             <span className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
               <StarIcon className="w-6 h-6 fill-amber-400 text-amber-400" />
             </span>
-            <span>Giám Sát Đánh Giá Khách Hàng &amp; Phản Hồi CSKH (CSAT Oversight)</span>
+            <span>Nhận Xét Từ Khách Hàng (Customer Feedback Oversight)</span>
           </h2>
           <p className="text-xs text-gray-400 mt-1">
-            Góc nhìn Quản Trị Viên: Theo dõi mức độ hài lòng của học viên và giám sát toàn bộ câu trả lời từ đội ngũ Chuyên viên Chăm Sóc Khách Hàng (CSKH) theo 3 bộ kịch bản phản hồi tiêu chuẩn.
+            Góc nhìn Ban Quản Trị: Chỉ giám sát mức độ hài lòng của khách hàng và quy trình phản hồi của Nghiệp vụ Chăm Sóc Khách Hàng (CSKH). Chuyên viên CSKH là người trực tiếp trao đổi và giải quyết phản hồi.
           </p>
         </div>
 
@@ -561,26 +501,11 @@ export default function AdminCustomerReviewsTab({ onTriggerToast }: AdminCustome
                         )}
                         <button
                           onClick={() => setInspectingReview(rev)}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-lg text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1"
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5"
                           title="Xem chi tiết giám sát"
                         >
-                          <SearchIcon className="w-3 h-3" />
-                          <span>Giám Sát</span>
-                        </button>
-                        <button
-                          onClick={() => handleOpenReplyModal(rev)}
-                          className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-gray-300 border border-white/10 rounded-lg text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1"
-                          title="Chỉnh sửa câu trả lời nếu cần can thiệp"
-                        >
-                          <Edit3Icon className="w-3 h-3" />
-                          <span>Hiệu Chỉnh</span>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteReview(rev.id, rev.clientName)}
-                          className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
-                          title="Xóa đánh giá này"
-                        >
-                          <Trash2Icon className="w-3.5 h-3.5" />
+                          <SearchIcon className="w-3.5 h-3.5" />
+                          <span>👁️ Giám Sát</span>
                         </button>
                       </div>
                     </div>
@@ -598,30 +523,16 @@ export default function AdminCustomerReviewsTab({ onTriggerToast }: AdminCustome
                         <span>Chưa Có Câu Trả Lời Từ Chuyên Viên CSKH</span>
                       </span>
                       <p className="text-[11px] text-gray-400">
-                        Đang chờ đội ngũ CSKH tiếp nhận và gửi câu trả lời theo chuẩn dịch vụ CSAT.
+                        Nghiệp vụ CSKH đang tiếp nhận và sẽ chủ động phản hồi khách hàng theo quy trình CSAT.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setInspectingReview(rev)}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
+                        className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5"
                       >
                         <SearchIcon className="w-3.5 h-3.5" />
-                        <span>Xem Chi Tiết</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenReplyModal(rev)}
-                        className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-xl text-xs cursor-pointer transition-all flex items-center gap-1.5 shadow-lg"
-                      >
-                        <MessageSquareIcon className="w-3.5 h-3.5" />
-                        <span>Chỉ Đạo / Trả Lời</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteReview(rev.id, rev.clientName)}
-                        className="p-1.5 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded-xl transition-colors cursor-pointer"
-                        title="Xóa đánh giá này"
-                      >
-                        <Trash2Icon className="w-4 h-4" />
+                        <span>👁️ Xem Giám Sát</span>
                       </button>
                     </div>
                   </div>
@@ -724,153 +635,11 @@ export default function AdminCustomerReviewsTab({ onTriggerToast }: AdminCustome
               <button
                 type="button"
                 onClick={() => setInspectingReview(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-xl text-xs font-bold cursor-pointer"
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-gray-200 rounded-xl text-xs font-bold cursor-pointer transition-all"
               >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const rev = inspectingReview;
-                  setInspectingReview(null);
-                  handleOpenReplyModal(rev);
-                }}
-                className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5"
-              >
-                <Edit3Icon className="w-3.5 h-3.5" />
-                <span>{inspectingReview.adminReply ? 'Hiệu Chỉnh Câu Trả Lời' : 'Chỉ Đạo / Trả Lời Ngay'}</span>
+                Đóng Hồ Sơ Giám Sát
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: REPLY TO CUSTOMER WITH 3 STANDARD CASES */}
-      {replyingReview && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#101a26] border border-amber-500/30 rounded-2xl p-6 w-full max-w-2xl shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div>
-                <h3 className="text-base font-black text-white flex items-center gap-2">
-                  <MessageSquareIcon className="w-5 h-5 text-amber-400" />
-                  <span>Trả Lời Đánh Giá Của Khách Hàng: {replyingReview.clientName}</span>
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Đồ án: <span className="text-sky-300 font-bold">{replyingReview.projectTitle}</span> ({replyingReview.ratingOverall.toFixed(1)} ⭐)
-                </p>
-              </div>
-              <button 
-                onClick={() => setReplyingReview(null)}
-                className="p-1 hover:bg-slate-800 rounded-lg text-gray-400 hover:text-white"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Student's Comment Recap */}
-            <div className="bg-slate-950/80 p-3.5 rounded-xl border border-white/10 space-y-1 text-xs">
-              <span className="text-gray-500 font-bold uppercase text-[10px]">Nội dung khách hàng đã nhận xét:</span>
-              <p className="text-gray-300 italic font-medium">
-                "{replyingReview.comment}"
-              </p>
-            </div>
-
-            {/* 3 Quick Template Selector Buttons */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-300 block">
-                Chọn Kịch Bản Trả Lời Chuẩn (3 Trường Hợp):
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {/* Case 1 Button */}
-                <button
-                  type="button"
-                  onClick={() => handleApplyTemplate(1)}
-                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                    selectedCaseNum === 1
-                      ? 'bg-red-950/40 border-red-500 text-white shadow-lg ring-1 ring-red-500'
-                      : 'bg-slate-950/60 border-white/10 text-gray-400 hover:border-red-500/40 hover:text-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-red-400">1. Yếu / Không Hài Lòng</span>
-                    {selectedCaseNum === 1 && <CheckIcon className="w-4 h-4 text-red-400" />}
-                  </div>
-                  <span className="text-[10px] text-gray-400 font-mono block">1 ⭐ đến 2 ⭐</span>
-                </button>
-
-                {/* Case 2 Button */}
-                <button
-                  type="button"
-                  onClick={() => handleApplyTemplate(2)}
-                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                    selectedCaseNum === 2
-                      ? 'bg-amber-950/40 border-amber-500 text-white shadow-lg ring-1 ring-amber-500'
-                      : 'bg-slate-950/60 border-white/10 text-gray-400 hover:border-amber-500/40 hover:text-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-amber-400">2. Tầm Trung / Góp Ý</span>
-                    {selectedCaseNum === 2 && <CheckIcon className="w-4 h-4 text-amber-400" />}
-                  </div>
-                  <span className="text-[10px] text-gray-400 font-mono block">3 ⭐</span>
-                </button>
-
-                {/* Case 3 Button */}
-                <button
-                  type="button"
-                  onClick={() => handleApplyTemplate(3)}
-                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                    selectedCaseNum === 3
-                      ? 'bg-emerald-950/40 border-emerald-500 text-white shadow-lg ring-1 ring-emerald-500'
-                      : 'bg-slate-950/60 border-white/10 text-gray-400 hover:border-emerald-500/40 hover:text-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-emerald-400">3. Hài Lòng / Tích Cực</span>
-                    {selectedCaseNum === 3 && <CheckIcon className="w-4 h-4 text-emerald-400" />}
-                  </div>
-                  <span className="text-[10px] text-gray-400 font-mono block">4 ⭐ đến 5 ⭐</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Editable Response Form */}
-            <form onSubmit={handleSendReply} className="space-y-4 text-xs">
-              <div>
-                <label className="text-gray-300 font-bold block mb-1.5 flex items-center justify-between">
-                  <span>Nội Dung Câu Trả Lời Gửi Khách Hàng:</span>
-                  <span className="text-[10px] text-gray-500 font-normal">(Có thể chỉnh sửa thêm nếu cần)</span>
-                </label>
-                <textarea 
-                  rows={5}
-                  required
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Nhập nội dung phản hồi gửi đến học viên..."
-                  className="w-full bg-slate-950 border border-white/20 rounded-xl p-3.5 text-white leading-relaxed focus:outline-none focus:border-amber-500 shadow-inner"
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setReplyingReview(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-xl font-bold cursor-pointer"
-                >
-                  Hủy Bỏ
-                </button>
-
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:opacity-90 text-slate-950 font-black rounded-xl cursor-pointer shadow-lg flex items-center gap-2 uppercase tracking-wider"
-                >
-                  <SendIcon className="w-4 h-4" />
-                  <span>Gửi Câu Trả Lời</span>
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

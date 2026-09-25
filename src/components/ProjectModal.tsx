@@ -27,10 +27,12 @@ export default function ProjectModal({ isOpen, onClose, language }: ProjectModal
 
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Auto-prefill the verified Google name and email of the logged-in user
   React.useEffect(() => {
     if (isOpen) {
+      setError(null);
       const savedUser = localStorage.getItem('lubpy_user');
       if (savedUser) {
         try {
@@ -62,6 +64,7 @@ export default function ProjectModal({ isOpen, onClose, language }: ProjectModal
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     
     try {
       const generatedId = `PRJ-${Math.floor(2400 + Math.random() * 7500)}`;
@@ -86,9 +89,11 @@ export default function ProjectModal({ isOpen, onClose, language }: ProjectModal
       window.dispatchEvent(new CustomEvent('lubpy_new_project', { detail: saved }));
       window.dispatchEvent(new Event('storage'));
       setSubmitted(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to persist request", err);
-      setSubmitted(true);
+      setError(err?.message || (language === 'vi' 
+        ? 'Không thể khởi tạo yêu cầu dự án. Vui lòng kiểm tra lại thông tin và thử lại.' 
+        : 'Failed to submit project request. Please check your information and try again.'));
     } finally {
       setLoading(false);
     }
@@ -104,6 +109,7 @@ export default function ProjectModal({ isOpen, onClose, language }: ProjectModal
       deadline: '',
       techStack: []
     });
+    setError(null);
     setSubmitted(false);
     onClose();
   };
@@ -176,6 +182,13 @@ export default function ProjectModal({ isOpen, onClose, language }: ProjectModal
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6" id="project-form">
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-700 text-sm font-medium animate-fadeIn" id="project-modal-error-banner">
+                  <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               {/* Form Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5" id="form-user-details">
                 <div className="space-y-1.5">

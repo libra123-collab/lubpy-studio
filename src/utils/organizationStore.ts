@@ -75,9 +75,63 @@ export function getStoredOrganization() {
   };
 }
 
+function sanitizeUserListForStorage(users: User[]): User[] {
+  if (!Array.isArray(users)) return [];
+  return users.map(u => {
+    if (!u) return u;
+    let photoUrl = u.photoUrl;
+    if (photoUrl && photoUrl.startsWith('data:') && photoUrl.length > 40000) {
+      photoUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.email || u.name || 'user')}&backgroundColor=0f172a`;
+    }
+    return { ...u, photoUrl };
+  });
+}
+
+function sanitizeHeadsMapForStorage(heads: Record<string, User>): Record<string, User> {
+  if (!heads || typeof heads !== 'object') return {};
+  const cleaned: Record<string, User> = {};
+  Object.keys(heads).forEach(k => {
+    const h = heads[k];
+    if (!h) return;
+    let photoUrl = h.photoUrl;
+    if (photoUrl && photoUrl.startsWith('data:') && photoUrl.length > 40000) {
+      photoUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(h.email || h.name || 'user')}&backgroundColor=0f172a`;
+    }
+    cleaned[k] = { ...h, photoUrl };
+  });
+  return cleaned;
+}
+
 export function saveOrganization(heads: Record<string, User>, members: User[]) {
-  localStorage.setItem('fintrixity_org_heads', JSON.stringify(heads));
-  localStorage.setItem('fintrixity_org_members', JSON.stringify(members));
+  try {
+    const cleanHeads = sanitizeHeadsMapForStorage(heads);
+    const cleanMembers = sanitizeUserListForStorage(members);
+    localStorage.setItem('fintrixity_org_heads', JSON.stringify(cleanHeads));
+    localStorage.setItem('fintrixity_org_members', JSON.stringify(cleanMembers));
+  } catch (e) {
+    console.warn('Quota warning while saving organization, attempting minimal save:', e);
+    try {
+      // Fallback with strictly truncated avatars
+      const minimalHeads: Record<string, User> = {};
+      Object.keys(heads || {}).forEach(k => {
+        const h = heads[k];
+        if (h) {
+          minimalHeads[k] = {
+            ...h,
+            photoUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(h.email || h.name || 'user')}&backgroundColor=0f172a`
+          };
+        }
+      });
+      const minimalMembers = (members || []).map(m => ({
+        ...m,
+        photoUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.email || m.name || 'user')}&backgroundColor=0f172a`
+      }));
+      localStorage.setItem('fintrixity_org_heads', JSON.stringify(minimalHeads));
+      localStorage.setItem('fintrixity_org_members', JSON.stringify(minimalMembers));
+    } catch (err) {
+      console.error('Failed to save organization to storage:', err);
+    }
+  }
 }
 
 export function clearAllOrganizationStaff() {

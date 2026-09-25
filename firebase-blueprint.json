@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "SupportMessage": {
+      "title": "SupportMessage",
+      "description": "A quick support message sent by a user or client to the support team",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the support message"
+        },
+        "senderId": {
+          "type": "string",
+          "description": "User UID or anonymous client session ID"
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Display name of the sender"
+        },
+        "senderEmail": {
+          "type": "string",
+          "description": "Email address of the sender"
+        },
+        "senderRole": {
+          "type": "string",
+          "description": "Role of the sender (e.g., client, student, guest, admin)"
+        },
+        "message": {
+          "type": "string",
+          "description": "The message body"
+        },
+        "category": {
+          "type": "string",
+          "description": "Topic or department category"
+        },
+        "status": {
+          "type": "string",
+          "description": "Resolution status of the message"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp string when message was submitted"
+        }
+      },
+      "required": ["senderName", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/support_messages/{messageId}": {
+      "schema": "SupportMessage",
+      "description": "Collection of quick support chat messages sent to the Lubpy support team"
+    }
+  }
+}

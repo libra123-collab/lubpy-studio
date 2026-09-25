@@ -461,10 +461,10 @@ export default function AdminRepoProjectsCatalog({ onNotify }: AdminRepoProjects
                     {/* Deliverable Code Packages List */}
                     <div className="space-y-1.5">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                        Các Tệp Tin Mã Nguồn &amp; Dữ Liệu Đi Kèm:
+                        💻 Tệp Tin Mã Nguồn &amp; Cơ Sở Dữ Liệu:
                       </span>
                       <div className="space-y-1 text-xs">
-                        <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                        <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-lg border border-emerald-500/20">
                           <div className="flex items-center gap-2 truncate pr-2">
                             <Code2Icon className="w-4 h-4 text-emerald-400 shrink-0" />
                             <span className="text-gray-200 truncate font-mono text-[11px]">{codeDeliverable.name}</span>
@@ -473,7 +473,7 @@ export default function AdminRepoProjectsCatalog({ onNotify }: AdminRepoProjects
                         </div>
 
                         {sqlDeliverable && (
-                          <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                          <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-lg border border-purple-500/20">
                             <div className="flex items-center gap-2 truncate pr-2">
                               <DatabaseIcon className="w-4 h-4 text-purple-400 shrink-0" />
                               <span className="text-gray-200 truncate font-mono text-[11px]">{sqlDeliverable.name}</span>
@@ -483,6 +483,38 @@ export default function AdminRepoProjectsCatalog({ onNotify }: AdminRepoProjects
                         )}
                       </div>
                     </div>
+
+                    {/* Báo Cáo Đính Kèm Theo Mã Nguồn */}
+                    {(() => {
+                      const attachedReports = project.deliverables.filter(d => ['DOC', 'SLIDE', 'REPORT', 'VIDEO'].includes(d.type));
+                      return (
+                        <div className="bg-slate-950/80 p-3 rounded-xl border border-sky-500/20 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase text-sky-400 flex items-center gap-1.5 tracking-wider">
+                              <FileTextIcon className="w-3.5 h-3.5 text-sky-400" />
+                              <span>📎 Báo Cáo &amp; Tài Liệu Đính Kèm ({attachedReports.length} tệp):</span>
+                            </span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 font-mono border border-sky-500/20 font-bold">
+                              Đồng Bộ 100%
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {attachedReports.map((rep, rIdx) => (
+                              <div key={rIdx} className="flex items-center justify-between bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-white/5 text-[11px]">
+                                <div className="flex items-center gap-2 truncate">
+                                  {rep.type === 'DOC' && <FileTextIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                                  {rep.type === 'SLIDE' && <PresentationIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                                  {rep.type === 'REPORT' && <FileSpreadsheetIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                                  {rep.type === 'VIDEO' && <EyeIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+                                  <span className="text-gray-300 truncate font-mono text-[10px]">{rep.name}</span>
+                                </div>
+                                <span className="text-[9px] text-gray-500 font-mono ml-2 shrink-0">{rep.size}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Actions */}

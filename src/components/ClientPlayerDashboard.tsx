@@ -6,13 +6,22 @@ import {
   Code2, Download, MessageSquare, AlertCircle, Phone, Sparkles,
   FolderKanban, Clock, Send, FileText, ChevronRight, X, Copy,
   Building2, Briefcase, Calendar, ShieldCheck, Check, LogOut,
-  Camera
+  Camera, ExternalLink
 } from 'lucide-react';
 import { User, ProjectRequest, SupportTicket } from '../types';
 import { getStoredOrganization } from '../utils/organizationStore';
 import { getVisibleNotificationsForUser } from '../utils/notificationStore';
 import NotificationMailboxModal from './NotificationMailboxModal';
 import WorkspaceNotificationBell from './WorkspaceNotificationBell';
+import { 
+  getWorkflowProjects, 
+  clientPayInvoice, 
+  clientConfirmSatisfaction, 
+  formatVNDCurrency, 
+  WorkflowProject 
+} from '../utils/projectWorkflowStore';
+import ProjectContractModal from './ProjectContractModal';
+import LubpyRobotMascot from './LubpyRobotMascot';
 
 interface ClientPlayerDashboardProps {
   user: User;
@@ -324,6 +333,59 @@ export default function ClientPlayerDashboard({
 
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [selectedProjectForDownload, setSelectedProjectForDownload] = useState<ProjectRequest | null>(null);
+
+  // Lubpy 6-Step Workflow State
+  const [workflowProjects, setWorkflowProjects] = useState<WorkflowProject[]>(() => getWorkflowProjects());
+  const [selectedWorkflowContract, setSelectedWorkflowContract] = useState<WorkflowProject | null>(null);
+  const [satisfactionPrj, setSatisfactionPrj] = useState<WorkflowProject | null>(null);
+  const [satisfactionRating, setSatisfactionRating] = useState(5);
+  const [satisfactionFeedback, setSatisfactionFeedback] = useState('Dự án lập trình rất chất lượng, đúng tiến độ và đội ngũ hỗ trợ rất nhiệt tình!');
+  const [lubpyAppreciationNote, setLubpyAppreciationNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleWf = () => setWorkflowProjects(getWorkflowProjects());
+    window.addEventListener('lubpy_workflow_projects_updated', handleWf);
+    return () => window.removeEventListener('lubpy_workflow_projects_updated', handleWf);
+  }, []);
+
+  const handleClientPayWorkflow = (prj: WorkflowProject, type: 'deposit_50' | 'full_100') => {
+    const isFull = type === 'full_100';
+    const res = clientPayInvoice(prj.id, isFull);
+    if (res) {
+      setWorkflowProjects(getWorkflowProjects());
+      triggerToast(type === 'deposit_50' ? '💳 Đã thanh toán tiền cọc 50% thành công!' : '🎉 Đã thanh toán đủ 100% hợp đồng! CSKH đang bàn giao Source Code.');
+    }
+  };
+
+  const handleClientSubmitSatisfaction = async () => {
+    if (!satisfactionPrj) return;
+    const res = clientConfirmSatisfaction(satisfactionPrj.id, satisfactionFeedback, satisfactionRating);
+    if (res) {
+      try {
+        const resp = await fetch('/api/chat/lubpy-ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: satisfactionFeedback,
+            userName: user.name || 'Khách hàng',
+            action: 'client_satisfied',
+            projectName: satisfactionPrj.projectName
+          })
+        });
+        const data = await resp.json();
+        if (data && data.reply) {
+          setLubpyAppreciationNote(data.reply);
+        } else {
+          throw new Error('No reply');
+        }
+      } catch (e) {
+        setLubpyAppreciationNote(`Kính gửi Quý khách ${user.name || 'Học viên'},\n\nLUBPY STUDIO và Lubpy AI xin trân trọng gửi lời tri ân sâu sắc nhất tới Quý khách đã tin tưởng và đồng hành cùng chúng tôi trong dự án "${satisfactionPrj.projectName}".\n\nSự hài lòng của Quý khách chính là nguồn động lực vô giá của đội ngũ CSKH, Kỹ Sư, Kế Toán và Ban Điều Hành LUBPY STUDIO.\n\nKính chúc Quý khách bảo vệ đồ án thành công rực rỡ và gặt hái nhiều thắng lợi mới trong sự nghiệp!\n\nTrân trọng,\nLubpy AI & Ban Giám Đốc LUBPY STUDIO`);
+      }
+      setWorkflowProjects(getWorkflowProjects());
+      setSatisfactionPrj(null);
+      triggerToast('🌟 Đã xác nhận nghiệm thu & nhận Thư Tri Ân từ Lubpy AI!');
+    }
+  };
 
   const [showSupportChatModal, setShowSupportChatModal] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
@@ -914,6 +976,228 @@ export default function ClientPlayerDashboard({
 
           </section>
 
+          {/* LUBPY 6-STEP WORKFLOW TRACKER FOR CLIENT */}
+          {workflowProjects.length > 0 && (
+            <section className="bg-gradient-to-r from-[#14161c] via-[#171b26] to-[#14161c] border border-sky-500/40 rounded-2xl p-6 mb-8 space-y-5 shadow-2xl relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-sky-300 px-2.5 py-0.5 bg-sky-500/20 border border-sky-500/30 rounded-md">
+                      Quy trình hỗ trợ &amp; Hợp đồng 6 bước
+                    </span>
+                    <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      LUBPY STUDIO × Khách Hàng
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-white tracking-tight">
+                    Theo Dõi Hóa Đơn, Bàn Giao &amp; Nghiệm Thu Đồ Án
+                  </h3>
+                </div>
+
+                <div className="text-xs text-gray-400">
+                  Tổng {workflowProjects.length} hồ sơ hợp tác trực tuyến
+                </div>
+              </div>
+
+              {/* Projects list */}
+              <div className="space-y-4">
+                {workflowProjects.map((prj) => {
+                  const isPaid100 = prj.paymentStatus === 'paid_100';
+                  const isDepositPaid = prj.paymentStatus === 'deposit_paid';
+                  const isDelivered = prj.status === 'delivered' || prj.status === 'client_satisfied';
+                  const hasInvoice = !!prj.invoiceId;
+
+                  return (
+                    <div
+                      key={prj.id}
+                      className="p-5 rounded-2xl bg-[#0f1117] border border-white/10 hover:border-sky-500/50 transition-all space-y-4 shadow-xl"
+                    >
+                      {/* Row 1: ID, Title, Status */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-black bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                            {prj.id}
+                          </span>
+                          <h4 className="text-sm font-bold text-white">{prj.projectName}</h4>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            {prj.category}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                            isPaid100
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : isDepositPaid
+                              ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          }`}>
+                            {isPaid100 ? 'Đã thanh toán 100%' : isDepositPaid ? 'Đã cọc 50%' : 'Chờ thanh toán'}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedWorkflowContract(prj)}
+                            className="px-3 py-1 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Hợp Đồng ({prj.contract?.signatures?.length || 0}/4 Ký)</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Team In-charge & Financials */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5 space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                            Nhân Sự Đảm Nhận
+                          </span>
+                          <p><strong className="text-white">CSKH phụ trách:</strong> {prj.assignedCS}</p>
+                          <p><strong className="text-white">Kỹ sư lập trình:</strong> {prj.assignedDev}</p>
+                          <p><strong className="text-white">Hạn bàn giao:</strong> {prj.deadline}</p>
+                        </div>
+
+                        <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5 space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                            Chi Phí &amp; Hóa Đơn Kế Toán
+                          </span>
+                          <p><strong className="text-white">Mã Hóa đơn:</strong> <span className="font-mono text-indigo-300 font-bold">{prj.invoiceId || 'Đang lập'}</span></p>
+                          <p><strong className="text-white">Tổng hợp đồng:</strong> <span className="text-amber-300 font-bold">{formatVNDCurrency(prj.totalAmountVnd)}</span></p>
+                          <p><strong className="text-white">Tiền cọc (50%):</strong> <span className="text-sky-300 font-bold">{formatVNDCurrency(prj.depositAmountVnd)}</span></p>
+                        </div>
+
+                        <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5 flex flex-col justify-between">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                              Thanh Toán Hóa Đơn Trực Tuyến
+                            </span>
+                            <p className="text-gray-300">
+                              Còn lại: <strong className="text-emerald-400">{formatVNDCurrency(isPaid100 ? 0 : isDepositPaid ? prj.remainingAmountVnd : prj.totalAmountVnd)}</strong>
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-2">
+                            {!isDepositPaid && !isPaid100 && (
+                              <button
+                                type="button"
+                                onClick={() => handleClientPayWorkflow(prj, 'deposit_50')}
+                                className="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow"
+                              >
+                                💳 Cọc 50%
+                              </button>
+                            )}
+
+                            {!isPaid100 && (
+                              <button
+                                type="button"
+                                onClick={() => handleClientPayWorkflow(prj, 'full_100')}
+                                className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-black cursor-pointer transition-all shadow"
+                              >
+                                💳 Thanh toán 100%
+                              </button>
+                            )}
+
+                            {isPaid100 && (
+                              <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                                <CheckCircle2 className="w-4 h-4" /> Đã hoàn tất 100%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Deliverables Section (Strict Access Control: unlocked only when paid 100%) */}
+                      <div className="p-3.5 bg-slate-950/80 rounded-xl border border-white/5 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-white flex items-center gap-1.5">
+                            <Download className="w-4 h-4 text-sky-400" />
+                            Sản Phẩm Bàn Giao (Source Code, Live Demo, Báo Cáo)
+                          </span>
+                          {!isPaid100 && (
+                            <span className="text-[11px] text-amber-400 font-medium">
+                              🔒 Đang khóa an toàn (Cần thanh toán 100%)
+                            </span>
+                          )}
+                        </div>
+
+                        {isPaid100 && prj.deliverables ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                            <a
+                              href={prj.deliverables.sourceCodeUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-between transition-all"
+                            >
+                              <span>📦 Tải Source Code</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+
+                            <a
+                              href={prj.deliverables.liveDemoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 text-xs font-bold flex items-center justify-between transition-all"
+                            >
+                              <span>🌐 Xem Demo Web / App</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+
+                            <a
+                              href={prj.deliverables.documentationUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center justify-between transition-all"
+                            >
+                              <span>📄 Tải Báo Cáo Đồ Án</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-gray-500 italic">
+                            Chuyên viên CSKH và Kỹ sư sẽ bàn giao link GitHub, link Live Demo và toàn bộ tài liệu thuyết trình ngay khi quý khách hoàn tất nghiệm thu thanh toán 100%.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Client Satisfaction & Lubpy AI Appreciation Section */}
+                      <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/5">
+                        {prj.clientSatisfaction?.isSatisfied ? (
+                          <div className="text-xs text-amber-300 font-bold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                            <span>Quý khách đã nghiệm thu hài lòng ({prj.clientSatisfaction.rating} ★★★★★)</span>
+                            <button
+                              type="button"
+                              onClick={() => setLubpyAppreciationNote(prj.clientSatisfaction?.lubpyAiThankYouMessage || 'Cảm ơn quý khách!')}
+                              className="ml-2 text-sky-400 underline hover:text-sky-300 font-normal cursor-pointer"
+                            >
+                              Xem Thư Tri Ân của Lubpy AI
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-xs text-gray-400">
+                              Sau khi kiểm tra demo &amp; nhận bàn giao, quý khách vui lòng đánh giá để nhận Thư Tri Ân từ Lubpy AI:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSatisfactionPrj(prj)}
+                              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>🌟 Nghiệm Thu &amp; Hoàn Toàn Hài Lòng</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* MAIN SECTION: TIẾN ĐỘ DỰ ÁN DÀNH CHO KHÁCH HÀNG (PROMINENT AT TOP) */}
           <section className="bg-[#181a20] border border-sky-500/30 rounded-2xl p-6 mb-8 space-y-6 shadow-2xl relative overflow-hidden" id="client-main-projects">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#232630] pb-5">
@@ -1491,6 +1775,127 @@ export default function ClientPlayerDashboard({
         orgHeads={orgData.heads}
         onTriggerToast={triggerToast}
       />
+
+      {/* LUBPY 6-STEP WORKFLOW CONTRACT MODAL */}
+      {selectedWorkflowContract && (
+        <ProjectContractModal
+          project={selectedWorkflowContract}
+          currentUser={user}
+          onClose={() => setSelectedWorkflowContract(null)}
+          onContractUpdated={(updatedPrj) => {
+            setSelectedWorkflowContract(updatedPrj);
+            setWorkflowProjects(getWorkflowProjects());
+          }}
+          language={language}
+        />
+      )}
+
+      {/* CLIENT SATISFACTION SUBMIT MODAL */}
+      {satisfactionPrj && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-2xl p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              Nghiệm Thu Dự Án &amp; Đánh Giá Chất Lượng
+            </h3>
+            <p className="text-xs text-gray-400">
+              Dự án: <strong className="text-white">{satisfactionPrj.projectName}</strong> ({satisfactionPrj.id})
+            </p>
+
+            <div>
+              <label className="text-xs font-bold text-gray-300 block mb-1">Mức độ hài lòng của Quý khách:</label>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setSatisfactionRating(star)}
+                    className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${
+                      satisfactionRating >= star ? 'text-amber-400' : 'text-gray-600'
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+                <span className="text-xs font-bold text-amber-300 ml-2">
+                  {satisfactionRating === 5 ? 'Tuyệt vời, vượt mong đợi!' : `${satisfactionRating}/5 Sao`}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-300 block mb-1">Lời nhận xét &amp; cảm nhận:</label>
+              <textarea
+                rows={3}
+                value={satisfactionFeedback}
+                onChange={(e) => setSatisfactionFeedback(e.target.value)}
+                placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm, CSKH và Kỹ sư LUBPY..."
+                className="w-full p-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setSatisfactionPrj(null)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={handleClientSubmitSatisfaction}
+                className="px-5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all cursor-pointer"
+              >
+                Gửi Đánh Giá &amp; Nhận Tri Ân
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LUBPY AI APPRECIATION LETTER MODAL */}
+      {lubpyAppreciationNote && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="w-full max-w-lg bg-gradient-to-b from-[#181a24] to-[#12131a] border border-amber-500/50 rounded-3xl p-7 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 text-white">
+            <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-slate-950 border border-amber-500/40 flex items-center justify-center overflow-hidden shadow-md">
+                  <LubpyRobotMascot size={32} animated={false} showGlow={false} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-amber-300 uppercase tracking-wide">
+                    Thư Tri Ân Khách Hàng Từ Lubpy AI
+                  </h3>
+                  <span className="text-[10px] text-gray-400">LUBPY STUDIO × Automated Appreciation Service</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setLubpyAppreciationNote(null)}
+                className="text-gray-400 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-xs text-gray-200 whitespace-pre-wrap leading-relaxed font-sans max-h-80 overflow-y-auto">
+              {lubpyAppreciationNote}
+            </div>
+
+            <div className="flex items-center justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setLubpyAppreciationNote(null)}
+                className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all cursor-pointer"
+              >
+                Đã Nhận Thư Tri Ân
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

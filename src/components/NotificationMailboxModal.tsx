@@ -43,8 +43,6 @@ export default function NotificationMailboxModal({
   orgHeads,
   onTriggerToast
 }: NotificationMailboxModalProps) {
-  if (!isOpen) return null;
-
   const [refreshKey, setRefreshKey] = useState(0);
   const [showCompose, setShowCompose] = useState(false);
   const [activeTab, setActiveTab] = useState<'inbox' | 'sent' | 'all'>('inbox');
@@ -230,6 +228,8 @@ export default function NotificationMailboxModal({
     markAsRead(id, user.email);
     setRefreshKey(prev => prev + 1);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">

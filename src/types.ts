@@ -99,6 +99,7 @@ export interface User {
   skills?: string; // Các kỹ năng làm việc (cho Nghiệp vụ)
   careerGoals?: string; // Định hướng mục tiêu nghề nghiệp (cho Nghiệp vụ)
   rating?: number; // Đánh giá hiệu suất / KPI (e.g. 5.0)
+  status?: string; // Trạng thái hoạt động
 }
 
 export interface SupportTicket {

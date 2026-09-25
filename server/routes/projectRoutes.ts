@@ -81,8 +81,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// 2. GET SINGLE PROJECT BY ID
-router.get('/:id', async (req: AuthRequest, res: Response) => {
+// 2. GET SINGLE PROJECT BY ID (Authenticated & Authorized)
+router.get('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const p = await storage.getProjectById(id);
@@ -93,14 +93,24 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       );
     }
 
-    // Role-based access check
-    const user = req.user;
-    if (user && user.role.toUpperCase() === 'CLIENT') {
+    // Role-based access and ownership check
+    const user = req.user!;
+    const userRole = (user.role || '').toUpperCase();
+
+    if (userRole === 'CLIENT') {
       const isOwner = (p.clientId && p.clientId === user.uid) || 
                       (p.clientEmail && p.clientEmail.toLowerCase() === user.email.toLowerCase());
       if (!isOwner) {
         return res.status(403).json(
           errorResponse('FORBIDDEN', 'Bạn không có quyền truy cập hồ sơ dự án của khách hàng khác.')
+        );
+      }
+    } else if (userRole === 'DEV') {
+      const isAssigned = (p.assignedDevId && p.assignedDevId === user.uid) ||
+                         (p.assignedDevName && p.assignedDevName.toLowerCase() === user.name.toLowerCase());
+      if (!isAssigned && !user.isDepartmentHead) {
+        return res.status(403).json(
+          errorResponse('FORBIDDEN', 'Bạn chỉ có quyền truy cập dự án đã được phân công hoặc dưới sự quản lý của Trưởng bộ phận.')
         );
       }
     }
@@ -254,7 +264,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
       );
     }
 
-    // Role check
+    // Role check and Field-level authorization
     const userRole = user.role.toUpperCase();
     if (userRole === 'CLIENT') {
       const isOwner = (current.clientId && current.clientId === user.uid) ||
@@ -262,6 +272,28 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
       if (!isOwner) {
         return res.status(403).json(
           errorResponse('FORBIDDEN', 'Bạn không có quyền chỉnh sửa dự án này.')
+        );
+      }
+      // Clients are strictly forbidden from modifying financial data, staff assignments, or project status
+      if (body.priceVnd !== undefined || body.price !== undefined || body.depositAmount !== undefined || 
+          body.devCommissionRate !== undefined || body.assignedDevName !== undefined || 
+          body.assignedDevId !== undefined || body.status !== undefined) {
+        return res.status(403).json(
+          errorResponse('FORBIDDEN', 'Khách hàng không được phép tự ý thay đổi báo giá, trạng thái dự án hoặc phân công nhân sự.')
+        );
+      }
+    } else if (userRole === 'DEV') {
+      const isAssigned = (current.assignedDevId && current.assignedDevId === user.uid) ||
+                         (current.assignedDevName && current.assignedDevName.toLowerCase() === user.name.toLowerCase());
+      if (!isAssigned && !user.isDepartmentHead) {
+        return res.status(403).json(
+          errorResponse('FORBIDDEN', 'Bạn chỉ có quyền cập nhật dự án kỹ thuật đã được phân công.')
+        );
+      }
+      // Devs cannot modify pricing or accounting deposits
+      if (body.priceVnd !== undefined || body.price !== undefined || body.depositAmount !== undefined || body.devCommissionRate !== undefined) {
+        return res.status(403).json(
+          errorResponse('FORBIDDEN', 'Lập trình viên không có quyền thay đổi thông số tài chính và hoa hồng của dự án.')
         );
       }
     }

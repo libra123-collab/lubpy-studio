@@ -1,6 +1,7 @@
 import { User, UserRole } from '../types';
 import { getStoredOrganization } from './organizationStore';
 import { saveAccountToStorage, removeSavedAccountFromStorage } from './savedAccounts';
+import { api } from './apiClient';
 
 /**
  * Converts a DOB string (YYYY-MM-DD from <input type="date">, DD/MM/YYYY, or other)
@@ -177,12 +178,19 @@ export function syncHeadAccountToAllStores(head: User, customPassword?: string):
   if (!head || !head.email) return;
   const cleanEmail = head.email.trim().toLowerCase();
   const dobDigits = dobTo8Digits(head.dob);
+  const defaultPass = head.role === 'tech' ? 'tech2026' : head.role === 'cs' ? 'cs2026' : head.role === 'hr' ? 'hr2026' : head.role === 'accounting' ? 'acc2026' : '123456';
   const finalPassword = (customPassword && customPassword.trim()) 
     || (head.password && head.password.trim()) 
-    || (dobDigits ? dobDigits : '123456');
+    || (dobDigits ? dobDigits : defaultPass);
+
+  let sanitizedPhoto = head.photoUrl;
+  if (sanitizedPhoto && sanitizedPhoto.startsWith('data:') && sanitizedPhoto.length > 40000) {
+    sanitizedPhoto = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(cleanEmail)}&backgroundColor=0f172a`;
+  }
 
   const fullHead: User = {
     ...head,
+    photoUrl: sanitizedPhoto || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(cleanEmail)}&backgroundColor=0f172a`,
     email: cleanEmail,
     password: finalPassword,
   };
@@ -203,7 +211,18 @@ export function syncHeadAccountToAllStores(head: User, customPassword?: string):
     } else {
       usersList.push(fullHead);
     }
-    localStorage.setItem('lubpy_users', JSON.stringify(usersList));
+    try {
+      localStorage.setItem('lubpy_users', JSON.stringify(usersList));
+    } catch (quotaErr) {
+      console.warn('Quota warning for lubpy_users, pruning data URLs...', quotaErr);
+      const pruned = usersList.map(u => ({
+        ...u,
+        photoUrl: (u.photoUrl && u.photoUrl.startsWith('data:') && u.photoUrl.length > 30000)
+          ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.email || 'user')}&backgroundColor=0f172a`
+          : u.photoUrl
+      }));
+      localStorage.setItem('lubpy_users', JSON.stringify(pruned));
+    }
   } catch (err) {
     console.error('Failed to sync to lubpy_users:', err);
   }
@@ -225,7 +244,25 @@ export function syncHeadAccountToAllStores(head: User, customPassword?: string):
     console.error('Failed to sync to saved accounts:', err);
   }
 
-  // 3. Dispatch system-wide events
+  // 3. Sync to backend API (PostgreSQL / storage) asynchronously
+  try {
+    api.auth.syncAccount({
+      email: cleanEmail,
+      name: fullHead.name.trim(),
+      role: fullHead.role,
+      password: finalPassword,
+      isDepartmentHead: true,
+      department: fullHead.department,
+      departmentTitle: fullHead.departmentTitle,
+      phone: fullHead.phone,
+      dob: fullHead.dob,
+      photoUrl: fullHead.photoUrl
+    });
+  } catch (err) {
+    console.error('Failed to sync head account to backend API:', err);
+  }
+
+  // 4. Dispatch system-wide events
   try {
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new CustomEvent('lubpy_saved_accounts_updated'));

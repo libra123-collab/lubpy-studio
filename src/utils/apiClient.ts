@@ -43,6 +43,9 @@ export const api = {
     adminLogin: (credentials: { email: string; password: string; adminSecurityKey?: string }) =>
       request('/auth/admin-login', { method: 'POST', body: JSON.stringify(credentials) }),
     
+    syncAccount: (data: any) =>
+      request('/auth/sync-account', { method: 'POST', body: JSON.stringify(data) }).catch(() => null),
+    
     sendOtp: (target: string, type: 'email' | 'phone' = 'email') =>
       request('/auth/send-otp', { method: 'POST', body: JSON.stringify({ target, type }) }),
     

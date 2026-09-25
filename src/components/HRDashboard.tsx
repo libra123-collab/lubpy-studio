@@ -8,7 +8,10 @@ import {
 import { User, UserRole } from '../types';
 import { getStoredOrganization } from '../utils/organizationStore';
 import { getVisibleNotificationsForUser } from '../utils/notificationStore';
-import { normalizeNameToEmail } from '../utils/authSyncHelper';
+import { normalizeNameToEmail, syncHeadAccountToAllStores } from '../utils/authSyncHelper';
+import { saveAccountToStorage } from '../utils/savedAccounts';
+import { api } from '../utils/apiClient';
+import { compressImageFile } from '../utils/imageCompressor';
 import NotificationMailboxModal from './NotificationMailboxModal';
 import UserProfileModal from './UserProfileModal';
 
@@ -277,20 +280,17 @@ export default function HRDashboard({ user, onLogout, language, onSwitchToSystem
     setShowAddModal(true);
   };
 
-  const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Dung lượng ảnh vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setFormAvatarUrl(reader.result);
+      try {
+        const compressed = await compressImageFile(file, 256, 256, 0.75);
+        if (compressed) {
+          setFormAvatarUrl(compressed);
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Failed to compress avatar:', err);
+      }
     }
   };
 
@@ -411,6 +411,35 @@ export default function HRDashboard({ user, onLogout, language, onSwitchToSystem
       }
       localStorage.setItem('lubpy_users', JSON.stringify(usersList));
       window.dispatchEvent(new Event('lubpy_users_updated'));
+
+      if (isHead) {
+        syncHeadAccountToAllStores(userObj, formPassword.trim());
+      } else {
+        saveAccountToStorage({
+          email: cleanEmail,
+          name: formName.trim(),
+          role: syncedRole,
+          isDepartmentHead: false,
+          department: formDepartment,
+          departmentTitle: formTitle || 'Chuyên Viên',
+          photoUrl: userObj.photoUrl,
+          password: formPassword.trim() || '123456',
+          savePasswordPreference: true
+        });
+
+        api.auth.syncAccount({
+          email: cleanEmail,
+          name: formName.trim(),
+          role: syncedRole,
+          password: formPassword.trim() || '123456',
+          isDepartmentHead: false,
+          department: formDepartment,
+          departmentTitle: formTitle || 'Chuyên Viên',
+          phone: formPhone.trim(),
+          dob: formDob.trim(),
+          photoUrl: userObj.photoUrl,
+        });
+      }
     } catch (e) {
       console.error('Failed to sync dev account to lubpy_users:', e);
     }
