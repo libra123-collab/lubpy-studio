@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { storage } from '../../src/db/storage.ts';
-import { AuthRequest, generateToken } from '../middleware/auth.ts';
+import { AuthRequest, generateToken, requireAuth, requireRoles } from '../middleware/auth.ts';
 import {
   registerClientSchema,
   loginSchema,
@@ -93,7 +93,7 @@ router.post('/register', authRateLimiter, async (req: AuthRequest, res: Response
       );
     }
 
-    // Hash password with bcrypt
+    // Hash password with bcrypt strictly (no plaintext)
     const salt = bcrypt.genSaltSync(12);
     const passwordHash = bcrypt.hashSync(password.trim(), salt);
     const uid = `usr_client_${Date.now()}`;
@@ -164,6 +164,8 @@ router.post('/register', authRateLimiter, async (req: AuthRequest, res: Response
 });
 
 // 2. LOGIN (CLIENT & INTERNAL STAFF)
+// Standard login flow: Email -> PostgreSQL user -> bcrypt.compareSync -> JWT Session
+// NO universal/role-based password bypasses
 router.post('/login', authRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const parseResult = loginSchema.safeParse(req.body);
@@ -189,17 +191,17 @@ router.post('/login', authRateLimiter, async (req: AuthRequest, res: Response) =
       );
     }
 
-    // Verify password strictly with bcrypt or standard department/admin credentials
-    const enteredPass = password.trim();
-    const isBcryptMatch = user.passwordHash ? bcrypt.compareSync(enteredPass, user.passwordHash) : false;
-    const isStandardRoleMatch =
-      (enteredPass === 'tech2026' && ['TECH_LEAD', 'DEVELOPER', 'TECH'].includes(user.role.toUpperCase())) ||
-      (enteredPass === 'cs2026' && ['CS', 'CS_LEAD'].includes(user.role.toUpperCase())) ||
-      (enteredPass === 'hr2026' && ['HR', 'HR_LEAD'].includes(user.role.toUpperCase())) ||
-      (enteredPass === 'acc2026' && ['ACCOUNTING', 'ACCOUNTING_LEAD'].includes(user.role.toUpperCase())) ||
-      (enteredPass === '123456');
+    // Verify password strictly against bcrypt hash stored in PostgreSQL
+    if (!user.passwordHash) {
+      return res.status(401).json(
+        errorResponse('AUTH_FAILED', 'Email hoặc mật khẩu không chính xác.')
+      );
+    }
 
-    if (!isBcryptMatch && !isStandardRoleMatch) {
+    const enteredPass = password.trim();
+    const isBcryptMatch = bcrypt.compareSync(enteredPass, user.passwordHash);
+
+    if (!isBcryptMatch) {
       return res.status(401).json(
         errorResponse('AUTH_FAILED', 'Email hoặc mật khẩu không chính xác.')
       );
@@ -253,6 +255,8 @@ router.post('/login', authRateLimiter, async (req: AuthRequest, res: Response) =
 });
 
 // 3. ADMIN LOGIN (SUPER ADMIN & EXECUTIVES)
+// Standard admin login: Email -> PostgreSQL user -> Role Verification -> bcrypt compare
+// NO universal/demo password bypasses
 router.post('/admin-login', authRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const parseResult = adminLoginSchema.safeParse(req.body);
@@ -279,12 +283,22 @@ router.post('/admin-login', authRateLimiter, async (req: AuthRequest, res: Respo
       );
     }
 
-    const enteredPass = password.trim();
-    const isSuperAdminDefault = (cleanEmail === 'superadmin@lubpystudio.vn' && enteredPass === 'admin123');
-    const isBcryptMatch = user.passwordHash ? bcrypt.compareSync(enteredPass, user.passwordHash) : false;
-    const isPasswordValid = isSuperAdminDefault || isBcryptMatch || enteredPass === 'admin123' || enteredPass === 'admin2026';
+    if (user.status === 'inactive' || user.status === 'suspended') {
+      return res.status(403).json(
+        errorResponse('ACCOUNT_DISABLED', 'Tài khoản Quản Trị đã bị tạm khóa.')
+      );
+    }
 
-    if (!isPasswordValid) {
+    if (!user.passwordHash) {
+      return res.status(401).json(
+        errorResponse('AUTH_FAILED', 'Mật khẩu Quản Trị không chính xác.')
+      );
+    }
+
+    const enteredPass = password.trim();
+    const isBcryptMatch = bcrypt.compareSync(enteredPass, user.passwordHash);
+
+    if (!isBcryptMatch) {
       return res.status(401).json(
         errorResponse('AUTH_FAILED', 'Mật khẩu Quản Trị không chính xác.')
       );
@@ -337,9 +351,20 @@ router.post('/admin-login', authRateLimiter, async (req: AuthRequest, res: Respo
   }
 });
 
-// 3.1. SYNC ACCOUNT (For Department Heads & Staff created by Admin)
+// 3.1. SYNC ACCOUNT (SECURED: ADMIN ONLY)
+// Requires Admin Authentication or valid Admin Security Key
 router.post('/sync-account', async (req: AuthRequest, res: Response) => {
   try {
+    const adminKey = req.headers['x-admin-key'] as string;
+    const isKeyAuthorized = process.env.ADMIN_SECURITY_KEY && adminKey === process.env.ADMIN_SECURITY_KEY;
+    const isUserAdmin = req.user && ['SUPER_ADMIN', 'ADMIN'].includes(req.user.role.toUpperCase());
+
+    if (!isKeyAuthorized && !isUserAdmin) {
+      return res.status(403).json(
+        errorResponse('FORBIDDEN', 'Yêu cầu quyền Quản Trị Hệ Thống để thực hiện đồng bộ tài khoản.')
+      );
+    }
+
     const { email, name, role, password, isDepartmentHead, department, departmentTitle, phone, dob, photoUrl } = req.body;
     if (!email) {
       return res.status(400).json(errorResponse('VALIDATION_ERROR', 'Email là bắt buộc.'));
@@ -348,17 +373,19 @@ router.post('/sync-account', async (req: AuthRequest, res: Response) => {
     const cleanEmail = String(email).trim().toLowerCase();
     const existing = await storage.findUserByEmail(cleanEmail);
 
-    const salt = bcrypt.genSaltSync(10);
-    const pass = password ? String(password).trim() : '123456';
-    const passwordHash = bcrypt.hashSync(pass, salt);
+    let passwordHash: string | undefined = undefined;
+    if (password && String(password).trim().length > 0) {
+      const salt = bcrypt.genSaltSync(10);
+      passwordHash = bcrypt.hashSync(String(password).trim(), salt);
+    }
 
     if (existing) {
       const updateData: any = {
         name: name ? String(name).trim() : existing.name,
         role: role ? String(role).toUpperCase() : existing.role,
         isDepartmentHead: isDepartmentHead !== undefined ? !!isDepartmentHead : existing.isDepartmentHead,
-        passwordHash,
       };
+      if (passwordHash) updateData.passwordHash = passwordHash;
       if (department) updateData.department = department;
       if (departmentTitle) updateData.departmentTitle = departmentTitle;
       if (phone) updateData.phone = phone;
@@ -371,12 +398,16 @@ router.post('/sync-account', async (req: AuthRequest, res: Response) => {
       const updated = await storage.updateUser(existing.id, updateData);
       return res.json(successResponse(sanitizeUser(updated), 'Đồng bộ tài khoản thành công.'));
     } else {
-      const uidRole = (role ? String(role).toLowerCase() : 'staff');
+      const uidRole = role ? String(role).toLowerCase() : 'staff';
+      const defaultPass = password ? String(password).trim() : 'SecurePass@2026';
+      const salt = bcrypt.genSaltSync(10);
+      const newHash = bcrypt.hashSync(defaultPass, salt);
+
       const newUser = await storage.createUser({
         uid: `usr_${uidRole}_${Date.now()}`,
         name: name ? String(name).trim() : cleanEmail.split('@')[0],
         email: cleanEmail,
-        passwordHash,
+        passwordHash: newHash,
         role: role ? String(role).toUpperCase() : 'DEVELOPER',
         isDepartmentHead: !!isDepartmentHead,
         department: department || 'Đội Ngũ Kỹ Thuật (Tech Team)',
@@ -395,7 +426,7 @@ router.post('/sync-account', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// 4. SEND OTP (SECURE - NO OTP CODE IN API RESPONSE)
+// 4. SEND OTP (SECURE - NO OTP CODE EXPOSED IN RESPONSE)
 router.post('/send-otp', authRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const parseResult = sendOtpSchema.safeParse(req.body);
@@ -430,7 +461,7 @@ router.post('/send-otp', authRateLimiter, async (req: AuthRequest, res: Response
   }
 });
 
-// 5. VERIFY OTP (SINGLE-USE ONLY)
+// 5. VERIFY OTP (STRICT: VERIFIED AGAINST POSTGRESQL, NO BYPASS)
 router.post('/verify-otp', authRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const parseResult = verifyOtpSchema.safeParse(req.body);
