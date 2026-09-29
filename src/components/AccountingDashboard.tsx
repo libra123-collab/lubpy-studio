@@ -1364,7 +1364,7 @@ export default function AccountingDashboard({ user, onLogout, language, onSwitch
                 <label className="block text-slate-300 font-bold mb-1">Mật khẩu PIN Kế toán trưởng / OTP 2FA</label>
                 <input 
                   type="password"
-                  placeholder="Nhập 123456 hoặc mật khẩu bảo mật..."
+                  placeholder="Nhập mật khẩu xác thực bảo mật..."
                   value={twoFactorPassword}
                   onChange={(e) => setTwoFactorPassword(e.target.value)}
                   className="w-full bg-[#0a0b0d] border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500"

@@ -115,11 +115,6 @@ export function verifyInternalPassword(enteredPassword: string, user: { password
     }
   }
 
-  // 3. Fallback demo passwords for standard accounts
-  if (p === '123456' || p === 'admin123' || p === 'tech2026' || p === 'cs2026' || p === 'hr2026' || p === 'acc2026') {
-    return true;
-  }
-
   return false;
 }
 

@@ -103,7 +103,7 @@ export default function AuthModal({
 
   // OTP Management State
   const [otpInput, setOtpInput] = useState<string[]>(['', '', '', '', '', '']);
-  const [generatedOtp, setGeneratedOtp] = useState<string>('123456');
+  const [generatedOtp, setGeneratedOtp] = useState<string>('');
   const [otpNotice, setOtpNotice] = useState<string | null>(null);
   const [otpResendCountdown, setOtpResendCountdown] = useState<number>(0);
 
@@ -268,8 +268,7 @@ export default function AuthModal({
     if (!resolvedPass) {
       const local = findInternalUserByEmail(acc.email);
       resolvedPass = (local?.password && local.password.trim())
-        || (local?.dob ? dobTo8Digits(local.dob) : '')
-        || (acc.role === 'admin' ? 'admin123' : acc.role === 'tech' ? 'tech2026' : acc.role === 'cs' ? 'cs2026' : acc.role === 'hr' ? 'hr2026' : acc.role === 'accounting' ? 'acc2026' : '123456');
+        || (local?.dob ? dobTo8Digits(local.dob) : '');
     }
     setPassword(resolvedPass);
 
@@ -654,64 +653,6 @@ export default function AuthModal({
         onClose();
       })
       .catch((err: any) => {
-        // Fallback for locally appointed Department Heads & internal staff
-        if (localUser) {
-          const dobDigits = dobTo8Digits(localUser.dob);
-          const defaultDeptPass = localUser.role === 'tech' ? 'tech2026' : localUser.role === 'cs' ? 'cs2026' : localUser.role === 'hr' ? 'hr2026' : localUser.role === 'accounting' ? 'acc2026' : '123456';
-          
-          const isPassMatch = 
-            (localUser.password && localUser.password.trim() === enteredPassword) ||
-            (dobDigits && dobDigits === enteredPassword) ||
-            (defaultDeptPass && defaultDeptPass === enteredPassword) ||
-            (enteredPassword === '123456') ||
-            (enteredPassword === 'tech2026' && (localUser.role === 'tech' || localUser.department === 'tech')) ||
-            (enteredPassword === 'cs2026' && (localUser.role === 'cs' || localUser.department === 'cs')) ||
-            (enteredPassword === 'hr2026' && (localUser.role === 'hr' || localUser.department === 'hr')) ||
-            (enteredPassword === 'acc2026' && (localUser.role === 'accounting' || localUser.department === 'accounting'));
-
-          if (isPassMatch) {
-            setIsSubmitting(false);
-            const authenticatedUser: User = {
-              ...localUser,
-              email: formattedEmail,
-              password: enteredPassword,
-            };
-
-            // Save account with remembered password to storage
-            saveAccountToStorage({
-              email: formattedEmail,
-              name: authenticatedUser.name,
-              role: authenticatedUser.role,
-              isDepartmentHead: authenticatedUser.isDepartmentHead,
-              department: authenticatedUser.department,
-              departmentTitle: authenticatedUser.departmentTitle,
-              photoUrl: authenticatedUser.photoUrl,
-              password: enteredPassword,
-              savePasswordPreference: true
-            });
-            setSavedAccounts(getSavedAccounts());
-
-            // Sync account to backend API so next time it validates directly
-            api.auth.syncAccount({
-              email: formattedEmail,
-              name: authenticatedUser.name,
-              role: authenticatedUser.role,
-              password: enteredPassword,
-              isDepartmentHead: authenticatedUser.isDepartmentHead,
-              department: authenticatedUser.department,
-              departmentTitle: authenticatedUser.departmentTitle,
-              phone: authenticatedUser.phone,
-              dob: authenticatedUser.dob,
-              photoUrl: authenticatedUser.photoUrl,
-            });
-
-            saveUserSession(authenticatedUser, `token_local_${Date.now()}`);
-            onLoginSuccess(authenticatedUser);
-            onClose();
-            return;
-          }
-        }
-
         setIsSubmitting(false);
         setError(err.message || (language === 'vi' 
           ? 'Email hoặc mật khẩu không chính xác.' 
@@ -973,77 +914,10 @@ export default function AuthModal({
         onClose();
       })
       .catch((err: any) => {
-        // Fallback for Admin account preservation
-        const enteredPass = password.trim();
-        const enteredKey = adminSecurityKey.trim();
-        const isKeyValid = !enteredKey || enteredKey === 'ADMIN_SUPER_KEY_2026' || enteredKey === 'SUPER_ADMIN_2026';
-
-        let localAdminPass = 'admin123';
-        let localAdminName = 'LUBPY Super Admin';
-        let localAdminPhoto = 'https://api.dicebear.com/7.x/adventurer/svg?seed=superadmin_king_01&backgroundColor=0f172a';
-        try {
-          const rawUsers = localStorage.getItem('lubpy_users');
-          if (rawUsers) {
-            const uList = JSON.parse(rawUsers);
-            const aFound = uList.find((u: any) => u.role === 'admin' || (u.email && u.email.toLowerCase() === formattedEmail));
-            if (aFound) {
-              if (aFound.password) localAdminPass = aFound.password;
-              if (aFound.name) localAdminName = aFound.name;
-              if (aFound.photoUrl) localAdminPhoto = aFound.photoUrl;
-            }
-          }
-        } catch (e) {}
-
-        const isPassOk = enteredPass === 'admin123' || enteredPass === 'admin2026' || enteredPass === localAdminPass;
-
-        if (isPassOk && isKeyValid) {
-          setIsSubmitting(false);
-          const adminUser: User = {
-            uid: 'usr_superadmin',
-            name: localAdminName,
-            email: formattedEmail,
-            role: 'admin',
-            isDepartmentHead: true,
-            department: 'Ban Quản Trị Hệ Thống',
-            departmentTitle: 'Tổng Giám Đốc / Super Admin',
-            photoUrl: localAdminPhoto,
-            password: enteredPass,
-            status: 'active'
-          };
-
-          saveAccountToStorage({
-            email: formattedEmail,
-            name: adminUser.name,
-            role: 'admin',
-            isDepartmentHead: true,
-            department: adminUser.department,
-            departmentTitle: adminUser.departmentTitle,
-            photoUrl: adminUser.photoUrl,
-            password: enteredPass,
-            adminSecurityKey: enteredKey || 'ADMIN_SUPER_KEY_2026',
-            savePasswordPreference: true
-          });
-          setSavedAccounts(getSavedAccounts());
-
-          // Sync to backend storage
-          api.auth.syncAccount({
-            email: formattedEmail,
-            name: adminUser.name,
-            role: 'SUPER_ADMIN',
-            password: enteredPass,
-            isDepartmentHead: true,
-            department: adminUser.department,
-            departmentTitle: adminUser.departmentTitle,
-          });
-
-          saveUserSession(adminUser, `token_admin_${Date.now()}`);
-          onLoginSuccess(adminUser);
-          onClose();
-          return;
-        }
-
         setIsSubmitting(false);
-        setError(err.message || 'Email, mật khẩu hoặc Admin Security Key không chính xác.');
+        setError(err.message || (language === 'vi' 
+          ? 'Email, mật khẩu hoặc Admin Security Key không chính xác.' 
+          : 'Invalid admin credentials.'));
       });
   };
 

@@ -400,7 +400,7 @@ export default function HRDashboard({ user, onLogout, language, onSwitchToSystem
         isDepartmentHead: isHead,
         department: formDepartment,
         departmentTitle: formTitle || 'Chuyên Viên',
-        password: formPassword.trim() || '123456',
+        password: formPassword.trim() || 'LubpyStaff@2026',
         createdByAdmin: true
       };
       const existingIdx = usersList.findIndex(u => u.email.toLowerCase() === formEmail.trim().toLowerCase());
@@ -423,7 +423,7 @@ export default function HRDashboard({ user, onLogout, language, onSwitchToSystem
           department: formDepartment,
           departmentTitle: formTitle || 'Chuyên Viên',
           photoUrl: userObj.photoUrl,
-          password: formPassword.trim() || '123456',
+          password: formPassword.trim() || 'LubpyStaff@2026',
           savePasswordPreference: true
         });
 
@@ -431,7 +431,7 @@ export default function HRDashboard({ user, onLogout, language, onSwitchToSystem
           email: cleanEmail,
           name: formName.trim(),
           role: syncedRole,
-          password: formPassword.trim() || '123456',
+          password: formPassword.trim() || 'LubpyStaff@2026',
           isDepartmentHead: false,
           department: formDepartment,
           departmentTitle: formTitle || 'Chuyên Viên',

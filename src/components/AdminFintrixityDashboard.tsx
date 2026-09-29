@@ -1924,7 +1924,7 @@ export default function AdminFintrixityDashboard({
 
     const customPass = password.trim();
     const dobDigits = dob ? dobTo8Digits(dob) : '';
-    const defaultDeptPass = deptKey === 'tech' ? 'tech2026' : deptKey === 'cs' ? 'cs2026' : deptKey === 'hr' ? 'hr2026' : deptKey === 'accounting' ? 'acc2026' : '123456';
+    const defaultDeptPass = deptKey === 'tech' ? 'tech2026' : deptKey === 'cs' ? 'cs2026' : deptKey === 'hr' ? 'hr2026' : deptKey === 'accounting' ? 'acc2026' : 'LubpyStaff@2026';
     // Ưu tiên: Mật khẩu nhập riêng -> 8 số ngày sinh -> Mật khẩu cũ -> Mật khẩu mặc định ngành
     const finalPassword = customPass || dobDigits || existingHeadToReplace?.password || defaultDeptPass;
 

@@ -191,7 +191,7 @@ export function getSavedAccounts(): SavedAccount[] {
       const existingIdx = filteredCurrent.findIndex(a => a && a.email && String(a.email).toLowerCase() === cleanEmail);
       const existingSaved = existingIdx >= 0 ? filteredCurrent[existingIdx] : null;
 
-      const defaultRolePass = headUser.role === 'tech' ? 'tech2026' : headUser.role === 'cs' ? 'cs2026' : headUser.role === 'hr' ? 'hr2026' : headUser.role === 'accounting' ? 'acc2026' : '123456';
+      const defaultRolePass = headUser.role === 'tech' ? 'tech2026' : headUser.role === 'cs' ? 'cs2026' : headUser.role === 'hr' ? 'hr2026' : headUser.role === 'accounting' ? 'acc2026' : 'LubpyStaff@2026';
       const headPassword = (headUser.password && headUser.password.trim()) 
         || (existingSaved?.savedPassword && existingSaved.savedPassword.trim()) 
         || (headUser.dob ? dobTo8Digits(headUser.dob) : '') 
