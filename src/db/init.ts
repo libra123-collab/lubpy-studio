@@ -545,8 +545,6 @@ export async function initializeDatabase(pool: Pool) {
   } catch (err: any) {
     storage.setPostgresStatus(false);
     console.error('❌ PostgreSQL database initialization failed:', err.message || err);
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(`FATAL_DATABASE_INIT_FAILURE: ${err.message || 'Could not connect to PostgreSQL'}`);
-    }
+    throw new Error(`FATAL_DATABASE_INIT_FAILURE: ${err.message || 'Could not connect to PostgreSQL'}`);
   }
 }

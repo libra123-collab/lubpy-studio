@@ -13,6 +13,7 @@ body {
   background-color: #ffffff;
   color: #2b4c64;
   overflow-x: hidden;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .app-container {
@@ -21,6 +22,7 @@ body {
   min-height: 100vh;
   position: relative;
   background-color: #ffffff;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Background video styling */
@@ -702,3 +704,231 @@ body {
 .lubpy-mascot-glow {
   animation: lubpy-glow 2.4s ease-in-out infinite;
 }
+
+/* ==========================================================================
+   Global Theme Styling (Custom Light Theme & Dark Workspace Theme)
+   ========================================================================== */
+
+/* Dark theme root variables (existing workspace colors) */
+:root,
+html.dark {
+  --color-bg-base: #0d0e10;
+  --color-bg-card: #121316;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-text-main: #ffffff;
+  --color-text-muted: #94a3b8;
+  color-scheme: dark;
+}
+
+/* Custom Light theme variables */
+html.light {
+  --color-bg-base: #f8fafc;
+  --color-bg-card: #ffffff;
+  --color-border: #e2e8f0;
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html.light .app-container {
+  background-color: #f8fafc;
+}
+
+/* Light Theme Header Overrides */
+html.light .header {
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
+
+html.light .header-scrolled {
+  background: rgba(255, 255, 255, 0.98);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+}
+
+html.light .nav-link {
+  color: #1e293b;
+  text-shadow: none;
+}
+
+html.light .nav-link:hover {
+  color: #0284c7;
+  text-shadow: none;
+}
+
+html.light #brand-text {
+  color: #0f172a;
+  drop-shadow: none;
+  filter: none;
+}
+
+html.light .hamburger-line {
+  background-color: #0f172a;
+}
+
+html.light #desktop-auth-profile {
+  background: rgba(241, 245, 249, 0.95);
+  border-color: rgba(203, 213, 225, 0.9);
+}
+
+html.light #desktop-auth-profile span.text-white {
+  color: #0f172a !important;
+}
+
+html.light #desktop-lang-switcher {
+  background: rgba(241, 245, 249, 0.95);
+  border-color: rgba(203, 213, 225, 0.9);
+}
+
+html.light #desktop-lang-switcher button.text-gray-400 {
+  color: #64748b;
+}
+
+html.light #desktop-lang-switcher button.text-gray-400:hover {
+  color: #0f172a;
+}
+
+html.light #desktop-btn-login {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+html.light #desktop-btn-login:hover {
+  background: #f1f5f9;
+}
+
+html.light .mobile-drawer {
+  background: rgba(255, 255, 255, 0.97) !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.light .mobile-drawer .nav-link {
+  color: #0f172a;
+}
+
+/* Light Theme for Workspace Fullscreen & Sub-dashboards */
+html.light #dashboard-fullscreen {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.light #dashboard-fullscreen .bg-\[\#0d0e10\],
+html.light #dashboard-fullscreen .bg-\[\#0d0e12\],
+html.light #dashboard-fullscreen .bg-\[\#0e1117\],
+html.light #dashboard-fullscreen .bg-\[\#121316\],
+html.light #dashboard-fullscreen .bg-\[\#0b0d10\],
+html.light #dashboard-fullscreen .bg-\[\#111215\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.light #dashboard-fullscreen .bg-slate-950,
+html.light #dashboard-fullscreen .bg-slate-900,
+html.light #dashboard-fullscreen .bg-slate-900\/60,
+html.light #dashboard-fullscreen .bg-slate-900\/70,
+html.light #dashboard-fullscreen .bg-slate-900\/80,
+html.light #dashboard-fullscreen .bg-slate-900\/90,
+html.light #dashboard-fullscreen .bg-slate-950\/60,
+html.light #dashboard-fullscreen .bg-slate-950\/80,
+html.light #dashboard-fullscreen .bg-slate-950\/90 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+html.light #dashboard-fullscreen .border-white\/10,
+html.light #dashboard-fullscreen .border-white\/5,
+html.light #dashboard-fullscreen .border-white\/15,
+html.light #dashboard-fullscreen .border-white\/20,
+html.light #dashboard-fullscreen .border-slate-800 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light #dashboard-fullscreen .text-white {
+  color: #0f172a !important;
+}
+
+html.light #dashboard-fullscreen .text-gray-200,
+html.light #dashboard-fullscreen .text-slate-200,
+html.light #dashboard-fullscreen .text-gray-300,
+html.light #dashboard-fullscreen .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light #dashboard-fullscreen .text-gray-400,
+html.light #dashboard-fullscreen .text-slate-400,
+html.light #dashboard-fullscreen .text-gray-500,
+html.light #dashboard-fullscreen .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.light #dashboard-fullscreen input,
+html.light #dashboard-fullscreen textarea,
+html.light #dashboard-fullscreen select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* ==========================================================================
+   Smooth Theme Transitions for Common Containers
+   ========================================================================== */
+
+#dashboard-fullscreen,
+#content-container,
+.header,
+.header-scrolled,
+.mobile-drawer,
+#desktop-auth-profile,
+#desktop-lang-switcher,
+#desktop-theme-toggle,
+#workspace-theme-toggle,
+#mobile-theme-switcher,
+#mobile-lang-switcher,
+#revenue-chart-panel,
+.bg-slate-900\/60,
+.bg-slate-950,
+.bg-slate-900 {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Workspace cards, header bars, and form inputs smooth transitions */
+#dashboard-fullscreen div[class*="bg-"],
+#dashboard-fullscreen div[class*="border-"],
+#dashboard-fullscreen aside,
+#dashboard-fullscreen nav,
+#dashboard-fullscreen header,
+#dashboard-fullscreen input,
+#dashboard-fullscreen textarea,
+#dashboard-fullscreen select {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .app-container,
+  #dashboard-fullscreen,
+  #content-container,
+  .header,
+  #dashboard-fullscreen * {
+    transition: none !important;
+  }
+}
+
+

@@ -122,351 +122,14 @@ export interface LubpyClientItem {
   notes?: string;
 }
 
-// Initial baseline mock data for LUBPY STUDIO Admin Workspace (10 Projects, 7 Leads, 0 Devs, 10 Clients, 16 Repo Docs)
-export const INITIAL_ADMIN_PROJECTS: LubpyProjectItem[] = [
-  {
-    id: 'DA-2026-01',
-    title: 'Hệ Thống E-Commerce AI Recommender & Microservices',
-    clientName: 'Nguyễn Văn An',
-    school: 'Đại Học Bách Khoa TP.HCM',
-    techStack: 'Next.js 14, Node.js, Kafka, Redis, PostgreSQL',
-    defenseDate: '30/10/2026',
-    status: 'In Progress',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 22000000,
-    devCommissionRate: 65,
-    progress: 65
-  },
-  {
-    id: 'DA-2026-02',
-    title: 'Nông Nghiệp Thông Minh IoT & Dự Báo Thời Tiết AI',
-    clientName: 'Trần Thị Mai',
-    school: 'Đại Học Quốc Gia',
-    techStack: 'Flutter, Python FastAPI, ESP32, MQTT, PyTorch',
-    defenseDate: '15/09/2026',
-    status: 'Coaching',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 18500000,
-    devCommissionRate: 65,
-    progress: 85
-  },
-  {
-    id: 'DA-2026-03',
-    title: 'Sàn Giao Dịch Chứng Khoán Ảo Real-time Trading Engine',
-    clientName: 'Lê Hoàng Nam',
-    school: 'Đại Học Kinh Tế Quốc Dân',
-    techStack: 'React, Spring Boot, WebSocket, PostgreSQL, Docker',
-    defenseDate: '28/07/2026',
-    status: 'Coaching',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 25000000,
-    devCommissionRate: 65,
-    progress: 90
-  },
-  {
-    id: 'DA-2026-04',
-    title: 'Hệ Thống Nhận Diện Khuôn Mặt & Điểm Danh AI Camera',
-    clientName: 'Phạm Quốc Bảo',
-    school: 'ĐH Công Nghệ - ĐHQGHN',
-    techStack: 'Python, OpenCV, PyTorch, FastAPI, React',
-    defenseDate: '12/08/2026',
-    status: 'In Progress',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 19000000,
-    devCommissionRate: 65,
-    progress: 60
-  },
-  {
-    id: 'DA-2026-05',
-    title: 'Ứng Dụng Đặt Lịch Khám & Hồ Sơ Bệnh Án Điện Tử',
-    clientName: 'Vũ Thị Lan',
-    school: 'ĐH Y Dược / ĐH CNTT',
-    techStack: 'Flutter, NestJS, PostgreSQL, AWS S3, Redis',
-    defenseDate: '05/11/2026',
-    status: 'In Progress',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 21000000,
-    devCommissionRate: 65,
-    progress: 45
-  },
-  {
-    id: 'DA-2026-06',
-    title: 'Hệ Thống Quản Lý Chuỗi Cung Ứng & Truy Xuất Nguồn Gốc Blockchain',
-    clientName: 'Đỗ Minh Khang',
-    school: 'Đại Học FPT',
-    techStack: 'Solidity, Ethereum, React, Node.js, IPFS, Hardhat',
-    defenseDate: '20/07/2026',
-    status: 'Completed',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 28000000,
-    devCommissionRate: 65,
-    progress: 100
-  },
-  {
-    id: 'DA-2026-07',
-    title: 'Chatbot AI Tư Vấn Pháp Luật Doanh Nghiệp RAG LangChain',
-    clientName: 'Bùi Thùy Dung',
-    school: 'ĐH Luật / ĐH CNTT',
-    techStack: 'LangChain, OpenAI/Gemini, FastAPI, ChromaDB, Next.js',
-    defenseDate: '18/11/2026',
-    status: 'In Progress',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 24000000,
-    devCommissionRate: 65,
-    progress: 55
-  },
-  {
-    id: 'DA-2026-08',
-    title: 'Nền Tảng Học Trực Tuyến LMS & Thi Trắc Nghiệm Chống Gian Lận',
-    clientName: 'Ngô Gia Huy',
-    school: 'ĐH Sư Phạm Kỹ Thuật TP.HCM',
-    techStack: 'Next.js, Go Golang, WebRTC, Redis, PostgreSQL',
-    defenseDate: '25/08/2026',
-    status: 'In Progress',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 20500000,
-    devCommissionRate: 65,
-    progress: 70
-  },
-  {
-    id: 'DA-2026-09',
-    title: 'Hệ Thống Giám Sát An Toàn Giao Thông & YOLOv8 Detection',
-    clientName: 'Lý Thái Phong',
-    school: 'Học Viện Công Nghệ Bưu Chính Viễn Thông',
-    techStack: 'YOLOv8, DeepSORT, FastAPI, Vue.js 3, Docker',
-    defenseDate: '15/07/2026',
-    status: 'Completed',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 26000000,
-    devCommissionRate: 65,
-    progress: 100
-  },
-  {
-    id: 'DA-2026-10',
-    title: 'Cổng Thanh Toán & Ví Điện Tử Fintech Mini Core Banking',
-    clientName: 'Trịnh Thu Hà',
-    school: 'Đại Học Ngân Hàng',
-    techStack: 'Node.js, Express, Docker, RabbitMQ, PostgreSQL, React',
-    defenseDate: '01/12/2026',
-    status: 'Pending',
-    assignedDev: 'Chưa phân công',
-    priceVnd: 23000000,
-    devCommissionRate: 65,
-    progress: 10
-  }
-];
+// Single Source of Truth: PostgreSQL database
+export const INITIAL_ADMIN_PROJECTS: LubpyProjectItem[] = [];
 
-export const INITIAL_LEADS: LubpyLeadItem[] = [
-  {
-    id: 'LD-201',
-    clientName: 'Hoàng Minh Đức',
-    phone: '0905112233',
-    email: 'duc.hm@hust.edu.vn',
-    school: 'Đại Học Bách Khoa Hà Nội',
-    topic: 'App Quản lý tài chính cá nhân & Phân tích chi tiêu AI',
-    budgetVnd: 16000000,
-    status: 'Mới tiếp nhận',
-    source: 'Landing Page',
-    createdAt: '23/07/2026'
-  },
-  {
-    id: 'LD-202',
-    clientName: 'Phan Thảo Nhi',
-    phone: '0914223344',
-    email: 'nhi.pt@uit.edu.vn',
-    school: 'Đại Học Công Nghệ Thông Tin (UIT)',
-    topic: 'Hệ thống Smart Home nhận diện giọng nói tiếng Việt offline',
-    budgetVnd: 22000000,
-    status: 'Đang tư vấn',
-    source: 'Zalo',
-    createdAt: '22/07/2026'
-  },
-  {
-    id: 'LD-203',
-    clientName: 'Lê Tấn Đạt',
-    phone: '0925334455',
-    email: 'dat.lt@dut.udn.vn',
-    school: 'Đại Học Bách Khoa Đà Nẵng',
-    topic: 'Nền tảng Booking khách sạn & Tour du lịch thông minh Next.js',
-    budgetVnd: 18000000,
-    status: 'Đã báo giá',
-    source: 'Facebook Fanpage',
-    createdAt: '21/07/2026'
-  },
-  {
-    id: 'LD-204',
-    clientName: 'Đặng Thùy Trang',
-    phone: '0936445566',
-    email: 'trang.dt@khtn.edu.vn',
-    school: 'Đại Học Khoa Học Tự Nhiên',
-    topic: 'Phân tích dữ liệu Y tế & Dự đoán biến chứng tiểu đường Machine Learning',
-    budgetVnd: 19500000,
-    status: 'Đã chốt hợp đồng',
-    source: 'Học viên giới thiệu',
-    createdAt: '19/07/2026'
-  },
-  {
-    id: 'LD-205',
-    clientName: 'Võ Anh Tuấn',
-    phone: '0947556677',
-    email: 'tuan.va@sgu.edu.vn',
-    school: 'Đại Học Sài Gòn',
-    topic: 'Ứng dụng Quản lý chuỗi Cửa hàng bán lẻ đa chi nhánh Flutter + NestJS',
-    budgetVnd: 17000000,
-    status: 'Đang tư vấn',
-    source: 'Landing Page',
-    createdAt: '22/07/2026'
-  },
-  {
-    id: 'LD-206',
-    clientName: 'Nguyễn Phương Linh',
-    phone: '0958667788',
-    email: 'linh.np@vku.udn.vn',
-    school: 'ĐH CNTT & Truyền Thông Việt Hàn',
-    topic: 'Website Tuyển dụng IT & Lọc CV tự động bằng NLP Matching',
-    budgetVnd: 21000000,
-    status: 'Mới tiếp nhận',
-    source: 'Zalo',
-    createdAt: '23/07/2026'
-  },
-  {
-    id: 'LD-207',
-    clientName: 'Trần Khắc Huy',
-    phone: '0969778899',
-    email: 'huy.tk@tdtu.edu.vn',
-    school: 'Đại Học Tôn Đức Thắng',
-    topic: 'Hệ thống Đấu giá trực tuyến Bidding Realtime WebSockets & Redis',
-    budgetVnd: 25000000,
-    status: 'Đã báo giá',
-    source: 'Facebook Fanpage',
-    createdAt: '20/07/2026'
-  }
-];
+export const INITIAL_LEADS: LubpyLeadItem[] = [];
 
 export const INITIAL_DEVS: LubpyDevItem[] = [];
 
-export const INITIAL_CLIENTS: LubpyClientItem[] = [
-  {
-    id: 'CL-101',
-    name: 'Nguyễn Văn An',
-    phone: '0912345678',
-    email: 'an.nguyen@bk.edu.vn',
-    school: 'Đại Học Bách Khoa TP.HCM',
-    workplace: 'Đại Học Bách Khoa TP.HCM (Khoa KH&KT Máy Tính)',
-    position: 'Sinh Viên Năm Cuối (Học viên)',
-    tier: 'Thân thiết',
-    createdAt: '15/06/2026',
-    notes: 'Khách hàng yêu cầu hỗ trợ cài đặt môi trường trực tiếp qua UltraViewer và tài liệu hướng dẫn chạy code chi tiết.'
-  },
-  {
-    id: 'CL-102',
-    name: 'Trần Thị Mai',
-    phone: '0987654321',
-    email: 'mai.tran@vnu.edu.vn',
-    school: 'Đại Học Quốc Gia',
-    workplace: 'Viện Đào Tạo Quốc Tế - ĐHQG TP.HCM',
-    position: 'Học Viên Cao Học CNTT',
-    tier: 'Mới',
-    createdAt: '20/06/2026',
-    notes: 'Cần tài liệu thuyết minh bám sát chuẩn IEEE 830, bảo mật thông tin đề tài luận văn.'
-  },
-  {
-    id: 'CL-103',
-    name: 'Lê Hoàng Nam',
-    phone: '0903456789',
-    email: 'nam.le@neu.edu.vn',
-    school: 'Đại Học Kinh Tế Quốc Dân',
-    workplace: 'Viện CNTT Kinh Tế & Chuyển Đổi Số - NEU',
-    position: 'Kỹ Sư Phần Mềm Dự Bị / Học viên',
-    tier: 'Giới thiệu người khác',
-    createdAt: '10/05/2026',
-    notes: 'Thường bảo vệ sớm hơn lịch chung 1 tuần, ưu tiên họp review code vào cuối tuần.'
-  },
-  {
-    id: 'CL-104',
-    name: 'Phạm Quốc Bảo',
-    phone: '0934567890',
-    email: 'bao.pham@uet.vnu.edu.vn',
-    school: 'ĐH Công Nghệ - ĐHQGHN',
-    workplace: 'Trường ĐH Công Nghệ - ĐHQGHN',
-    position: 'Sinh Viên CNTT Khóa K66',
-    tier: 'Mới',
-    createdAt: '28/06/2026',
-    notes: 'Cần hỗ trợ cấu hình Dockerfile và kịch bản demo trên server cloud Linux.'
-  },
-  {
-    id: 'CL-105',
-    name: 'Vũ Thị Lan',
-    phone: '0945678901',
-    email: 'lan.vu@meditech.edu.vn',
-    school: 'ĐH Y Dược / ĐH CNTT',
-    workplace: 'Bệnh viện Thống Nhất / ĐH Y Dược TP.HCM',
-    position: 'Bác Sĩ Thực Tập / Học Viên IT Y Tế',
-    tier: 'Mới',
-    createdAt: '02/07/2026',
-    notes: 'Đề tài bệnh án điện tử, cần bảo mật dữ liệu mẫu bệnh nhân giả lập và kiểm thử kỹ.'
-  },
-  {
-    id: 'CL-106',
-    name: 'Đỗ Minh Khang',
-    phone: '0967890123',
-    email: 'khang.do@fpt.edu.vn',
-    school: 'Đại Học FPT',
-    workplace: 'FPT Software (Phân hiệu ĐH FPT TP.HCM)',
-    position: 'Fresher Developer / Học viên',
-    tier: 'Thân thiết',
-    createdAt: '18/04/2026',
-    notes: 'Ưa thích công nghệ Blockchain & Next.js, thường xuyên phản hồi nhanh qua Zalo.'
-  },
-  {
-    id: 'CL-107',
-    name: 'Bùi Thùy Dung',
-    phone: '0978901234',
-    email: 'dung.bui@law.edu.vn',
-    school: 'ĐH Luật / ĐH CNTT',
-    workplace: 'Văn Phòng Luật Sư Sài Gòn / ĐH Luật TP.HCM',
-    position: 'Học Viên Văn Bằng 2 CNTT',
-    tier: 'Mới',
-    createdAt: '05/07/2026',
-    notes: 'Cần chú trọng phân tích yêu cầu nghiệp vụ và lưu đồ BPMN rõ ràng trong báo cáo.'
-  },
-  {
-    id: 'CL-108',
-    name: 'Ngô Gia Huy',
-    phone: '0918902345',
-    email: 'huy.ngo@hcmute.edu.vn',
-    school: 'ĐH Sư Phạm Kỹ Thuật TP.HCM',
-    workplace: 'ĐH Sư Phạm Kỹ Thuật TP.HCM',
-    position: 'Sinh Viên Năm 4 Chuyên Ngành Mạng & Web',
-    tier: 'Giới thiệu người khác',
-    createdAt: '25/05/2026',
-    notes: 'Yêu cầu có slide thuyết trình song ngữ (tiếng Anh và tiếng Việt) phục vụ hội đồng.'
-  },
-  {
-    id: 'CL-109',
-    name: 'Lý Thái Phong',
-    phone: '0929013456',
-    email: 'phong.ly@ptit.edu.vn',
-    school: 'Học Viện Công Nghệ Bưu Chính Viễn Thông',
-    workplace: 'Học Viện Công Nghệ Bưu Chính Viễn Thông (Cơ Sở TP.HCM)',
-    position: 'Học Viên Khóa Chuyên Sâu AI & Thị Giác Máy Tính',
-    tier: 'Thân thiết',
-    createdAt: '10/04/2026',
-    notes: 'Cần file trọng số YOLOv8 pre-trained và notebook hướng dẫn train trên Google Colab Pro.'
-  },
-  {
-    id: 'CL-110',
-    name: 'Trịnh Thu Hà',
-    phone: '0939124567',
-    email: 'ha.trinh@hub.edu.vn',
-    school: 'Đại Học Ngân Hàng',
-    workplace: 'Ngân Hàng TMCP Quân Đội (MB Bank) / ĐH Ngân Hàng TP.HCM',
-    position: 'Chuyên Viên Phân Tích Nghiệp Vụ (BA)',
-    tier: 'Mới',
-    createdAt: '12/07/2026',
-    notes: 'Cần tài liệu SRS và sơ đồ Use Case, ERD chuẩn mực phục vụ bảo vệ đề tài tốt nghiệp.'
-  }
-];
+export const INITIAL_CLIENTS: LubpyClientItem[] = [];
 
 export const INITIAL_REPO_DOCS = [
   { id: 'DOC-01', name: 'Template_BaoCao_LuanVan_TotNghiep_Chuan_Bo_GD_2026.docx', size: '18.5 MB', type: 'DOC' },
@@ -1226,13 +889,10 @@ export default function AdminFintrixityDashboard({
         }
       } catch (e) {}
     }
-    return INITIAL_ADMIN_PROJECTS.map(p => ({
-      ...p,
-      thumbnailUrl: p.thumbnailUrl || getCuratedThumbnail(p.title, p.techStack)
-    }));
+    return [];
   });
 
-  // Fetch projects directly from backend on mount
+  // Fetch projects and clients directly from PostgreSQL backend on mount
   const loadProjectsFromDb = async () => {
     try {
       const dbProjects = await fetchProjectsFromDb();
@@ -1253,10 +913,10 @@ export default function AdminFintrixityDashboard({
               }
               return p.techStack;
             }
-            return 'React';
+            return 'React, Node.js';
           })(),
           defenseDate: p.deadline || '30/10/2026',
-          status: p.status === 'coding' ? 'In Progress' : (p.status === 'delivered' ? 'Completed' : (p.status === 'pending' ? 'Pending' : p.status)),
+          status: p.status === 'CODING' ? 'In Progress' : (p.status === 'DELIVERED' ? 'Completed' : (p.status === 'PENDING' ? 'Pending' : p.status)),
           assignedDev: p.assignedDevName || 'Chưa phân công',
           priceVnd: Number(p.priceVnd) || 15000000,
           devCommissionRate: Number(p.devCommissionRate) || 65,
@@ -1265,8 +925,29 @@ export default function AdminFintrixityDashboard({
         }));
         setProjects(formatted);
       }
+
+      // Fetch clients directly from PostgreSQL users table
+      const dbUsers = await api.users.list();
+      if (Array.isArray(dbUsers)) {
+        const clientUsers = dbUsers.filter((u: any) => (u.role || '').toUpperCase() === 'CLIENT' || u.userRole === 'CLIENT' || u.rawRole === 'CLIENT');
+        if (clientUsers.length > 0) {
+          const mappedClients: LubpyClientItem[] = clientUsers.map((u: any, idx: number) => ({
+            id: u.uid || `CL-${idx + 101}`,
+            name: u.name,
+            phone: u.phone || '0901234567',
+            email: u.email,
+            school: u.workEnvironment || 'Đại Học CNTT',
+            workplace: u.workEnvironment || 'Cá nhân',
+            position: u.occupation || 'Học viên đồ án',
+            tier: 'Thân thiết',
+            createdAt: u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : '15/08/2026',
+            notes: u.skills || 'Học viên đồ án CNTT'
+          }));
+          setClients(mappedClients);
+        }
+      }
     } catch (err) {
-      console.warn('Failed to load projects from PostgreSQL:', err);
+      console.warn('Failed to load data from PostgreSQL:', err);
     }
   };
 

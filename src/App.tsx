@@ -19,8 +19,10 @@ import FloatingLanguageSelector from './components/FloatingLanguageSelector';
 import SupportChatFloatingButton from './components/SupportChatFloatingButton';
 import { User } from './types';
 import { getUserSession, saveUserSession, clearUserSession } from './utils/session';
+import { useTheme } from './context/ThemeContext';
 
 export default function App() {
+  const { theme } = useTheme();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
@@ -125,7 +127,12 @@ export default function App() {
 
       {/* When any User (Client, Admin, or Staff) is logged in, display Client / Workspace Dashboard in Full Screen, hiding Landing Page */}
       {user ? (
-        <div className="min-h-screen w-full bg-[#0d0e10] z-50 relative text-white" id="dashboard-fullscreen">
+        <div 
+          className={`min-h-screen w-full z-50 relative transition-colors duration-300 ${
+            theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#0d0e10] text-white'
+          }`} 
+          id="dashboard-fullscreen"
+        >
           <WorkspaceDashboard 
             user={user} 
             onLogout={handleLogout} 
@@ -162,7 +169,12 @@ export default function App() {
           />
 
           {/* Content Sections */}
-          <div className="relative z-10 bg-white/70 backdrop-blur-3xl" id="content-container">
+          <div 
+            className={`relative z-10 backdrop-blur-3xl transition-colors duration-300 ${
+              theme === 'light' ? 'bg-white/85 text-slate-800' : 'bg-slate-950/70 text-slate-100'
+            }`} 
+            id="content-container"
+          >
             <About language={language} />
             <TechStack language={language} />
             <ProcessPricing onOpenRequestModal={handleOpenModal} language={language} />

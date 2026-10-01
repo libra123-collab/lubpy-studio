@@ -168,9 +168,22 @@ export function setupSocketIO(httpServer: HttpServer): SocketIOServer {
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('error', (err: any) => {
+      console.warn(`[Socket.IO Server] Non-fatal client error (${socket.id}):`, err?.message || err);
+    });
+
+    socket.on('close', () => {
+      // Clean connection close
+    });
+
+    socket.on('disconnect', (reason: string) => {
       // Clean disconnect
     });
+  });
+
+  // Catch engine-level connection errors (e.g. preview iframe WebSocket upgrades)
+  io.engine.on('connection_error', (err: any) => {
+    // Gracefully absorb connection transport warnings without throwing
   });
 
   ioInstance = io;

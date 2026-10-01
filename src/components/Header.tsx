@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Sparkles, UserCheck, Shield, ChevronDown, Building2, User as UserIcon, Crown } from 'lucide-react';
+import { Menu, X, Sparkles, UserCheck, Shield, ChevronDown, Building2, User as UserIcon, Crown, Sun, Moon } from 'lucide-react';
 import { translations } from '../translations';
 import { User, UserRole } from '../types';
 import { AuthViewMode, GoogleIcon } from './AuthModal';
+import { useTheme } from '../context/ThemeContext';
 
 interface HeaderProps {
   onOpenRequestModal: () => void;
@@ -41,6 +42,7 @@ const VNFlag = () => (
 );
 
 export default function Header({ onOpenRequestModal, language, onLanguageChange, user, onOpenAuthModal, onLogout, onUpdateUser }: HeaderProps) {
+  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [signupDropdownOpen, setSignupDropdownOpen] = useState(false);
@@ -211,6 +213,25 @@ export default function Header({ onOpenRequestModal, language, onLanguageChange,
               </div>
             )}
 
+            {/* Global Theme Toggle Button (Light/Dark Mode) */}
+            <button 
+              onClick={toggleTheme}
+              className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all duration-300 cursor-pointer shadow-md ${
+                theme === 'dark' 
+                  ? 'bg-slate-900/60 border-white/10 text-amber-300 hover:text-amber-200 hover:border-amber-400/50 hover:bg-slate-800' 
+                  : 'bg-white border-slate-300 text-amber-500 hover:text-amber-600 hover:border-amber-400 hover:bg-slate-50'
+              }`}
+              aria-label={theme === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme'}
+              title={theme === 'dark' ? (language === 'vi' ? 'Chuyển sang giao diện Sáng' : 'Switch to Light Theme') : (language === 'vi' ? 'Chuyển sang giao diện Tối' : 'Switch to Dark Theme')}
+              id="desktop-theme-toggle"
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-amber-400 hover:rotate-45 transition-transform duration-300" />
+              ) : (
+                <Moon className="w-4 h-4 text-indigo-600 -rotate-12 hover:rotate-0 transition-transform duration-300" />
+              )}
+            </button>
+
             {/* Language Switcher Capsule */}
             <div className="flex items-center gap-1.5 bg-slate-900/60 border border-white/10 rounded-full p-1.5 shadow-lg backdrop-blur-md" id="desktop-lang-switcher">
               <button 
@@ -358,6 +379,36 @@ export default function Header({ onOpenRequestModal, language, onLanguageChange,
                 </div>
               </div>
             )}
+
+            {/* Theme Switcher in mobile menu */}
+            <div className="flex items-center justify-between bg-slate-950/60 border border-white/10 rounded-xl p-2 w-full" id="mobile-theme-switcher">
+              <span className="text-gray-400 text-[10px] font-bold tracking-wider uppercase ml-2 flex items-center gap-1.5">
+                {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-sky-400" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
+                <span>{language === 'vi' ? 'Giao Diện' : 'Theme'}</span>
+              </span>
+              <button 
+                onClick={toggleTheme}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider transition-all duration-300 cursor-pointer border ${
+                  theme === 'dark' 
+                    ? 'bg-slate-900 text-amber-300 border-white/10 hover:border-amber-400/40' 
+                    : 'bg-white text-slate-800 border-slate-300 shadow-sm hover:border-indigo-400'
+                }`}
+                id="mobile-theme-toggle"
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{language === 'vi' ? 'Chế độ Tối' : 'Dark'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{language === 'vi' ? 'Chế độ Sáng' : 'Light'}</span>
+                  </>
+                )}
+              </button>
+            </div>
 
             {/* Language Switcher Capsule in mobile menu */}
             <div className="flex items-center justify-between bg-slate-950/60 border border-white/10 rounded-xl p-2 w-full" id="mobile-lang-switcher">

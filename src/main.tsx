@@ -1,24 +1,31 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import { ErrorBoundary } from './components/ErrorBoundary.tsx';
-import './index.css';
-
-// Global error handlers to prevent unhandled rejection crashes
+// Catch and block unhandled WebSocket errors globally
 window.addEventListener('unhandledrejection', (event) => {
-  console.warn('Captured unhandled promise rejection:', event.reason);
-  event.preventDefault();
+  const reason = event.reason?.message || String(event.reason || '');
+  if (reason.includes('WebSocket') || reason.includes('websocket')) {
+    event.preventDefault();
+  }
 });
 
 window.addEventListener('error', (event) => {
-  console.warn('Captured window runtime error:', event.message);
-  event.preventDefault();
+  const msg = event.message || String(event.error || '');
+  if (msg.includes('WebSocket') || msg.includes('websocket')) {
+    event.preventDefault();
+  }
 });
+
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
+import { ThemeProvider } from './context/ThemeContext.tsx';
+import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,
 );

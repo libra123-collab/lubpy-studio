@@ -4,9 +4,10 @@ import {
   FolderKanban, MessageSquare, CheckCircle, Clock, Send, UploadCloud, 
   UserCheck, PlusCircle, ArrowRight, Shield, Award, Users, BarChart3, 
   FileText, Code2, HeartHandshake, Settings, DollarSign, BookOpen, AlertCircle, Trash2,
-  Camera
+  Camera, Sun, Moon
 } from 'lucide-react';
 import { User, ProjectRequest, SupportTicket, UserRole } from '../types';
+import { useTheme } from '../context/ThemeContext';
 import AdminFintrixityDashboard from './AdminFintrixityDashboard';
 import TechDeveloperDashboard from './TechDeveloperDashboard';
 import CustomerSupportDashboard from './CustomerSupportDashboard';
@@ -60,6 +61,7 @@ function deduplicateUsers(userList: User[]): User[] {
 }
 
 export default function WorkspaceDashboard({ user, onLogout, language, onOpenRequestModal, onUpdateUser }: WorkspaceDashboardProps) {
+  const { theme, toggleTheme } = useTheme();
   // Sync core data using localStorage to represent a simulated server persistence
   const [projects, setProjects] = useState<ProjectRequest[]>(() => {
     const saved = localStorage.getItem('lubpy_projects');
@@ -1090,6 +1092,25 @@ export default function WorkspaceDashboard({ user, onLogout, language, onOpenReq
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto" id="profile-actions-group">
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className={`flex items-center justify-center w-10 h-10 rounded-xl border transition-all duration-300 cursor-pointer shadow-sm ${
+              theme === 'dark'
+                ? 'bg-slate-900/60 border-white/10 text-amber-300 hover:text-amber-200 hover:border-amber-400/40 hover:bg-slate-800'
+                : 'bg-white border-slate-300 text-amber-500 hover:text-amber-600 hover:border-amber-400 hover:bg-slate-50'
+            }`}
+            aria-label={theme === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme'}
+            title={theme === 'dark' ? (language === 'vi' ? 'Chuyển sang giao diện Sáng' : 'Switch to Light Theme') : (language === 'vi' ? 'Chuyển sang giao diện Tối' : 'Switch to Dark Theme')}
+            id="workspace-theme-toggle"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 text-amber-400 hover:rotate-45 transition-transform duration-300" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-600 -rotate-12 hover:rotate-0 transition-transform duration-300" />
+            )}
+          </button>
+
           {/* Workspace Notification Bell with Dropdown of Updates/Messages from backend */}
           <WorkspaceNotificationBell
             user={user}

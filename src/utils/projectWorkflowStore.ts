@@ -9,6 +9,8 @@
  * 6. Department Heads (CS Lead, Tech Lead, Accounting Lead, Super Admin) digital contract signing
  */
 
+import { api } from './apiClient';
+
 export interface WorkflowSupportMessage {
   id: string;
   senderName: string;
@@ -41,7 +43,7 @@ export interface WorkflowContractSignature {
 }
 
 export interface WorkflowProject {
-  id: string; // e.g. "PRJ-2026-088"
+  id: string; // e.g. "PRJ-2401"
   clientName: string;
   clientEmail: string;
   clientPhone: string;
@@ -58,7 +60,7 @@ export interface WorkflowProject {
     | 'deposit_paid'          // Khách đã đặt cọc
     | 'fully_paid'            // Khách đã thanh toán 100%
     | 'delivered'             // CSKH đã bàn giao dự án sau khi thanh toán
-    | 'client_satisfied';     // Khách hàng hoàn toàn hài lòng & Lubpy AI gửi lời tri ân
+    | 'client_satisfied';     // Khách hàng hoàn toàn hài lòng & Lubpy AI gửi lời triân
 
   // Assigned Staff
   assignedCS: string;
@@ -105,99 +107,107 @@ export interface WorkflowProject {
 const STORAGE_KEY_WORKFLOW_PROJECTS = 'lubpy_workflow_projects';
 const STORAGE_KEY_WORKFLOW_CHAT = 'lubpy_workflow_chat_messages';
 
-// Standard Initial Projects for seamless experience
-export const INITIAL_WORKFLOW_PROJECTS: WorkflowProject[] = [
-  {
-    id: 'PRJ-2026-001',
-    clientName: 'Nguyễn Văn Hải',
-    clientEmail: 'client@gmail.com',
-    clientPhone: '0912345678',
-    projectName: 'Hệ thống Quản lý Bệnh án Điện tử & Đặt lịch Khám E-Hospital (React + NodeJS)',
-    category: 'Đồ án tốt nghiệp CNTT',
-    requirements: 'Xây dựng Web App đặt lịch khám bệnh, tích hợp thanh toán VNPay, phân quyền Bác sĩ / Bệnh nhân / Quản trị viên, xuất PDF phiếu khám.',
-    deadline: '2026-10-15',
-    status: 'delivered',
-    assignedCS: 'Đặng Ngọc Mai (Trưởng CSKH)',
-    assignedDev: 'Trần Hoàng Nam (Senior Dev)',
+// Empty default: PostgreSQL is the single source of truth
+export const INITIAL_WORKFLOW_PROJECTS: WorkflowProject[] = [];
+
+// Helper to map DB project to Workflow project
+function mapDbProjectToWorkflow(p: any): WorkflowProject {
+  const statusMapping: Record<string, WorkflowProject['status']> = {
+    PENDING: 'cs_intake',
+    ASSIGNED: 'tech_assigned',
+    DEPOSIT_50: 'deposit_paid',
+    CODING: 'tech_assigned',
+    REVIEW: 'tech_assigned',
+    PAID_100: 'fully_paid',
+    DELIVERED: 'delivered',
+    COMPLETED: 'client_satisfied',
+  };
+
+  const currentStatus = statusMapping[p.status] || 'cs_intake';
+  const price = Number(p.priceVnd) || 15000000;
+  const deposit = Number(p.depositAmount) || 0;
+  const remaining = Number(p.remainingAmount) !== undefined ? Number(p.remainingAmount) : Math.max(0, price - deposit);
+
+  let signatures: WorkflowContractSignature[] = [];
+  if (p.reports) {
+    try {
+      const parsedReports = typeof p.reports === 'string' ? JSON.parse(p.reports) : p.reports;
+      if (Array.isArray(parsedReports)) {
+        signatures = parsedReports.filter((r: any) => r.isSignature);
+      }
+    } catch (e) {}
+  }
+
+  return {
+    id: p.id,
+    clientName: p.clientName || 'Khách Hàng',
+    clientEmail: p.clientEmail || 'client@gmail.com',
+    clientPhone: p.clientPhone || '0901234567',
+    projectName: p.title || p.projectName || 'Dự án LUBPY Studio',
+    category: p.projectType || 'Đồ án tốt nghiệp CNTT',
+    requirements: p.description || '',
+    deadline: p.deadline || '2026-10-30',
+    status: currentStatus,
+    assignedCS: p.assignedCsName || 'Đặng Ngọc Mai (Trưởng CSKH)',
+    assignedDev: p.assignedDevName || 'Trần Hoàng Nam (Senior Dev)',
     assignedAccountant: 'Nguyễn Văn Minh (Kế Toán Trưởng)',
-    totalAmountVnd: 12000000,
-    depositAmountVnd: 6000000,
-    remainingAmountVnd: 6000000,
-    invoiceId: 'HD-2026-001',
-    invoiceDate: '2026-09-18',
-    paymentStatus: 'paid_100',
+    totalAmountVnd: price,
+    depositAmountVnd: deposit,
+    remainingAmountVnd: remaining,
+    invoiceId: `HD-${p.id}`,
+    invoiceDate: p.updatedAt ? String(p.updatedAt).slice(0, 10) : '2026-09-20',
+    paymentStatus: deposit > 0 ? (remaining <= 0 ? 'paid_100' : 'deposit_paid') : 'unpaid',
     deliverables: {
-      sourceCodeUrl: 'https://github.com/lubpystudio/e-hospital-ehr-system-release',
-      liveDemoUrl: 'https://demo-ehospital.lubpystudio.vn',
-      documentationUrl: 'https://docs.lubpystudio.vn/ehospital-report-full.pdf',
-      deliveredAt: '2026-09-21 14:30'
-    },
-    clientSatisfaction: {
-      isSatisfied: true,
-      rating: 5,
-      feedback: 'Dự án chạy rất mượt, giao diện chuẩn y tế và thầy cô hướng dẫn khen rất nhiều. Cảm ơn Lubpy Studio!',
-      confirmedAt: '2026-09-22 09:15',
-      lubpyAiThankYouMessage: '🤖 LUBPY AI xin chân thành cảm ơn bạn Nguyễn Văn Hải đã tin tưởng đồng hành cùng LUBPY STUDIO! Chúng tôi vô cùng vinh hạnh khi dự án "E-Hospital" đạt kết quả xuất sắc. Chúc bạn có buổi bảo vệ đồ án thành công rực rỡ và phát triển sự nghiệp công nghệ vững chắc! Hệ thống đã kích hoạt bảo hành Source Code trọn đời & tặng bạn voucher 20% cho các dịch vụ tiếp theo.'
+      sourceCodeUrl: 'https://github.com/lubpystudio/release',
+      liveDemoUrl: 'https://demo.lubpystudio.vn',
+      documentationUrl: 'https://docs.lubpystudio.vn',
+      deliveredAt: p.deliveredAt ? String(p.deliveredAt) : undefined,
     },
     contract: {
-      contractNumber: 'HD-LUBPY-2026-001',
-      createdAt: '2026-09-15',
-      termsSummary: 'Hợp đồng phát triển phần mềm ứng dụng quản lý bệnh án điện tử, cam kết bảo hành 12 tháng, hỗ trợ cài đặt môi trường và hướng dẫn bảo vệ đồ án.',
-      signatures: [
-        {
-          role: 'CS_HEAD',
-          title: 'Trưởng Phòng CSKH & Tư Vấn',
-          signerName: 'Đặng Ngọc Mai',
-          signerEmail: 'truecs@lubpystudio.vn',
-          signedAt: '2026-09-15 10:30',
-          signatureStamp: 'SIG_CS_MAI_9847289'
-        },
-        {
-          role: 'TECH_HEAD',
-          title: 'Trưởng Đội Ngũ Kỹ Thuật (Tech Lead)',
-          signerName: 'Phan Quốc Bảo',
-          signerEmail: 'truetechengineer@lubpystudio.vn',
-          signedAt: '2026-09-15 11:15',
-          signatureStamp: 'SIG_TECH_BAO_2938491'
-        },
-        {
-          role: 'ACCOUNTING_HEAD',
-          title: 'Trưởng Phòng Kế Toán & Tài Chính',
-          signerName: 'Nguyễn Văn Minh',
-          signerEmail: 'trueaccounting@lubpystudio.vn',
-          signedAt: '2026-09-15 14:00',
-          signatureStamp: 'SIG_ACC_MINH_3847291'
-        },
-        {
-          role: 'SUPER_ADMIN',
-          title: 'Tổng Giám Đốc / Super Admin',
-          signerName: 'LUBPY Super Admin',
-          signerEmail: 'superadmin@lubpystudio.vn',
-          signedAt: '2026-09-15 15:45',
-          signatureStamp: 'SIG_ADMIN_SUPER_8392019'
-        }
-      ]
+      contractNumber: `HD-LUBPY-${p.id}`,
+      createdAt: p.createdAt ? String(p.createdAt).slice(0, 10) : '2026-09-15',
+      termsSummary: `Hợp đồng dịch vụ triển khai ${p.title} cho khách hàng ${p.clientName}. Cam kết hoàn thiện đúng tiến độ và bảo hành trọn đời.`,
+      signatures,
     },
-    createdAt: '2026-09-15 09:00',
-    updatedAt: '2026-09-22 09:15'
-  }
-];
+    createdAt: p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN'),
+    updatedAt: p.updatedAt ? new Date(p.updatedAt).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN'),
+  };
+}
 
 export function getWorkflowProjects(): WorkflowProject[] {
   const raw = localStorage.getItem(STORAGE_KEY_WORKFLOW_PROJECTS);
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     } catch (e) {
       console.error('Error parsing workflow projects:', e);
     }
   }
-  // Initialize with seed project
-  localStorage.setItem(STORAGE_KEY_WORKFLOW_PROJECTS, JSON.stringify(INITIAL_WORKFLOW_PROJECTS));
-  return INITIAL_WORKFLOW_PROJECTS;
+  return [];
+}
+
+// Pull directly from PostgreSQL table 'projects' and update local cache
+export async function syncWorkflowProjectsFromDb(): Promise<WorkflowProject[]> {
+  try {
+    const dbProjects = await api.projects.list();
+    if (Array.isArray(dbProjects)) {
+      const mapped = dbProjects.map(mapDbProjectToWorkflow);
+      localStorage.setItem(STORAGE_KEY_WORKFLOW_PROJECTS, JSON.stringify(mapped));
+      window.dispatchEvent(new CustomEvent('lubpy_workflow_projects_updated', { detail: mapped }));
+      return mapped;
+    }
+  } catch (err) {
+    console.error('Failed to sync workflow projects from PostgreSQL:', err);
+  }
+  return getWorkflowProjects();
+}
+
+// Auto-sync on client load
+if (typeof window !== 'undefined') {
+  syncWorkflowProjectsFromDb().catch(() => {});
 }
 
 export function saveWorkflowProjects(projects: WorkflowProject[]): void {
@@ -234,6 +244,17 @@ export function saveWorkflowChatMessage(msg: Omit<WorkflowSupportMessage, 'id' |
   const updated = [...current, newMsg];
   localStorage.setItem(STORAGE_KEY_WORKFLOW_CHAT, JSON.stringify(updated));
   window.dispatchEvent(new CustomEvent('lubpy_workflow_chat_updated', { detail: newMsg }));
+
+  // Persist directly into PostgreSQL table 'live_chats'
+  api.tickets.sendLiveChat({
+    sessionId: msg.clientEmail || 'client-chat',
+    sender: msg.senderName,
+    senderRole: msg.senderRole === 'client' ? 'client' : (msg.senderRole === 'cs_staff' ? 'cskh' : 'system'),
+    message: msg.message,
+  }).catch(err => {
+    console.warn('Notice saving live chat to PostgreSQL:', err.message);
+  });
+
   return newMsg;
 }
 
@@ -292,6 +313,27 @@ export function createProjectFromSupportRequest({
   };
 
   saveWorkflowProjects([newProject, ...projects]);
+
+  // Persist directly into PostgreSQL table 'projects'
+  api.projects.create({
+    id,
+    projectCode: id,
+    clientName: newProject.clientName,
+    clientEmail: newProject.clientEmail,
+    clientPhone: newProject.clientPhone,
+    title: newProject.projectName,
+    description: newProject.requirements,
+    projectType: newProject.category,
+    deadline: newProject.deadline,
+    priceVnd: newProject.totalAmountVnd,
+    depositAmount: newProject.depositAmountVnd,
+    remainingAmount: newProject.remainingAmountVnd,
+    assignedCsName: newProject.assignedCS,
+    assignedDevName: newProject.assignedDev,
+  }).catch(err => {
+    console.warn('Notice persisting project to PostgreSQL:', err.message);
+  });
+
   return newProject;
 }
 

@@ -9,7 +9,8 @@ import cors from 'cors';
 // Load environment variables before database access
 dotenv.config();
 
-import { pool, db } from './src/db/index.ts';
+import { pool, db, checkDatabaseConnection } from './src/db/index.ts';
+import { initializeDatabase } from './src/db/init.ts';
 import { authMiddleware } from './server/middleware/auth.ts';
 import { securityHeadersMiddleware } from './server/middleware/security.ts';
 import { setupSocketIO } from './server/realtime/socket.ts';
@@ -25,6 +26,26 @@ import notificationRoutes from './server/routes/notificationRoutes.ts';
 import dashboardRoutes from './server/routes/dashboardRoutes.ts';
 
 async function startServer() {
+  // Verify PostgreSQL database connection
+  console.log('🔌 Connecting to PostgreSQL database (Single Source of Truth)...');
+  const isDbConnected = await checkDatabaseConnection();
+  if (isDbConnected) {
+    // Initialize and verify database tables
+    await initializeDatabase(pool);
+    console.log('✅ PostgreSQL database connected and tables verified.');
+  } else {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ FATAL ERROR: Cannot connect to PostgreSQL database in production environment.');
+      process.exit(1);
+    } else {
+      console.warn('⚠️  [Notice] PostgreSQL database is not running or not reachable on 127.0.0.1:5432 / DATABASE_URL.');
+      console.warn('💡 To enable backend database persistence in VS Code / Antigravity:');
+      console.warn('   1. Run: docker compose up -d');
+      console.warn('   2. Or set DATABASE_URL in .env (e.g. Supabase, Neon, or local Postgres)');
+      console.warn('🚀 Dev server starting for frontend & UI testing...');
+    }
+  }
+
   const app = express();
   const httpServer = http.createServer(app);
   const PORT = Number(process.env.PORT) || 3000;
@@ -122,7 +143,10 @@ async function startServer() {
   // Vite Middleware for Frontend Client SPA
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

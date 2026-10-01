@@ -8,12 +8,47 @@
     <meta property="og:title" content="LUBPY STUDIO" />
     <meta property="og:description" content="Premium coding services for custom academic and enterprise software projects." />
     <script>
+      // Early system and localStorage theme detection to immediately update document.documentElement class
+      (function() {
+        try {
+          var saved = localStorage.getItem('lubpy_theme');
+          var theme = saved;
+          if (!theme || (theme !== 'light' && theme !== 'dark')) {
+            theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+          }
+          var root = document.documentElement;
+          if (theme === 'light') {
+            root.classList.add('light');
+            root.classList.remove('dark');
+            root.setAttribute('data-theme', 'light');
+            root.style.colorScheme = 'light';
+          } else {
+            root.classList.add('dark');
+            root.classList.remove('light');
+            root.setAttribute('data-theme', 'dark');
+            root.style.colorScheme = 'dark';
+          }
+        } catch(e) {}
+      })();
+    </script>
+    <script>
+      // Suppress Vite HMR and WebSocket iframe preview warnings
       window.addEventListener('error', function (e) {
-        console.warn('Handled resource or script error:', e.message || e);
+        var msg = (e && e.message) ? e.message : String(e || '');
+        if (msg.includes('WebSocket') || msg.includes('vite') || msg.includes('ws://') || msg.includes('wss://')) {
+          if (e.preventDefault) e.preventDefault();
+          return;
+        }
+        console.warn('Handled resource or script error:', msg);
         if (e.preventDefault) e.preventDefault();
       });
       window.addEventListener('unhandledrejection', function (e) {
-        console.warn('Handled promise rejection:', e.reason);
+        var reason = (e && e.reason) ? (e.reason.message || String(e.reason)) : '';
+        if (reason.includes('WebSocket') || reason.includes('vite') || reason.includes('ws://') || reason.includes('wss://')) {
+          if (e.preventDefault) e.preventDefault();
+          return;
+        }
+        console.warn('Handled promise rejection:', reason);
         if (e.preventDefault) e.preventDefault();
       });
     </script>
